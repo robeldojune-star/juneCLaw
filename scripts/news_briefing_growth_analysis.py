@@ -21,6 +21,15 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from core.supabase_rest import read_env  # noqa: E402
 
 
+def merged_project_hermes_env() -> dict[str, str]:
+    env = read_env(PROJECT_ROOT / ".env")
+    hermes_env = read_env(Path.home() / ".hermes" / ".env")
+    for key in ("TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "HERMES_TELEGRAM_CHAT_ID"):
+        if not env.get(key) and hermes_env.get(key):
+            env[key] = hermes_env[key]
+    return env
+
+
 def run_optional_opendart_smoke() -> dict[str, object]:
     script = PROJECT_ROOT / "scripts" / "test_opendart_api.py"
     if not script.exists():
@@ -70,7 +79,7 @@ def run_news_collector() -> dict[str, Any]:
 
 
 def main() -> int:
-    env = read_env()
+    env = merged_project_hermes_env()
     blocks: list[str] = []
     alerts: list[str] = []
     news = run_news_collector()
@@ -78,7 +87,7 @@ def main() -> int:
     data_sources = {
         "opendart_key_present": bool(env.get("OPENDART_API_KEY") or env.get("DART_API_KEY")),
         "rss_news_collector": bool(news.get("summary", {}).get("collected_item_count", 0)),
-        "telegram_env_present": bool(env.get("TELEGRAM_BOT_TOKEN") and env.get("TELEGRAM_CHAT_ID")),
+        "telegram_env_present": bool(env.get("TELEGRAM_BOT_TOKEN") and (env.get("TELEGRAM_CHAT_ID") or env.get("HERMES_TELEGRAM_CHAT_ID"))),
     }
 
     if not data_sources["opendart_key_present"]:

@@ -19,10 +19,20 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from core.supabase_rest import read_env  # noqa: E402
 
 
+def read_telegram_env() -> dict[str, str]:
+    """Read project .env, then Hermes .env as fallback; never print values."""
+    env = read_env(PROJECT_ROOT / ".env")
+    hermes_env = read_env(Path.home() / ".hermes" / ".env")
+    for key in ("TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "HERMES_TELEGRAM_CHAT_ID"):
+        if not env.get(key) and hermes_env.get(key):
+            env[key] = hermes_env[key]
+    return env
+
+
 def main() -> int:
-    env = read_env()
+    env = read_telegram_env()
     token = env.get("TELEGRAM_BOT_TOKEN")
-    chat_id = env.get("TELEGRAM_CHAT_ID")
+    chat_id = env.get("TELEGRAM_CHAT_ID") or env.get("HERMES_TELEGRAM_CHAT_ID")
     blocks: list[str] = []
     if not token:
         blocks.append("missing_telegram_bot_token")

@@ -12,11 +12,12 @@ n8n process: running
 local health: http://127.0.0.1:5678/healthz -> {"status":"ok"}
 /rest/workflows: 401 Unauthorized
 N8N_API_KEY: missing
-TELEGRAM_BOT_TOKEN: missing
-TELEGRAM_CHAT_ID: missing
+TELEGRAM_BOT_TOKEN: project .env missing / Hermes .env present
+TELEGRAM_CHAT_ID: project .env missing
+Hermes send_message telegram: OK
 ```
 
-따라서 현재 자동 import와 Telegram 테스트 메시지 발송은 credential 입력 전까지 block 상태다.
+따라서 현재 자동 import는 n8n API credential 입력 전까지 block 상태다. Telegram은 Hermes 홈 채널 전송은 확인됐지만, n8n의 직접 Telegram Bot 노드는 n8n credential 또는 chat id 설정이 추가로 필요하다.
 
 ---
 
