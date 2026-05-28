@@ -111,16 +111,7 @@ def stage_system_health_check() -> list[WorkflowStep]:
 
 
 def stage_news_briefing_growth_analysis() -> list[WorkflowStep]:
-    return [
-        WorkflowStep(
-            name="news_briefing_placeholder",
-            ok=True,
-            status="blocked",
-            summary="news/growth briefing workflow is registered but collector is not implemented in this repo yet",
-            blocking_conditions=["news_collector_not_implemented"],
-            details={"expected_output": "telegram briefing + research flags"},
-        )
-    ]
+    return [_run_command("news_briefing_growth_analysis", [sys.executable, "scripts/news_briefing_growth_analysis.py"], timeout=120)]
 
 
 def stage_stock_morning_signals() -> list[WorkflowStep]:
@@ -140,16 +131,7 @@ def stage_premarket_account_risk_check() -> list[WorkflowStep]:
 
 
 def stage_candidate_compression_layer() -> list[WorkflowStep]:
-    return [
-        WorkflowStep(
-            name="candidate_compression_placeholder",
-            ok=True,
-            status="blocked",
-            summary="candidate compression needs trading_signals/order_candidates query implementation",
-            blocking_conditions=["candidate_compression_not_implemented"],
-            details={"target": "compress to TOP 5~10 before 09:00"},
-        )
-    ]
+    return [_run_command("candidate_compression_layer", [sys.executable, "scripts/candidate_compression_layer.py"], timeout=120)]
 
 
 def stage_morning_investment_layer() -> list[WorkflowStep]:
@@ -181,16 +163,8 @@ def stage_opening_layer(window: int, stage_name: str) -> list[WorkflowStep]:
     return steps
 
 
-def stage_monitoring_placeholder(stage: str) -> list[WorkflowStep]:
-    return [
-        WorkflowStep(
-            name=stage,
-            ok=True,
-            status="blocked",
-            summary=f"{stage} is scheduled; detailed positions/orders reconciliation script is pending",
-            blocking_conditions=[f"{stage}_not_implemented"],
-        )
-    ]
+def stage_monitoring(stage: str) -> list[WorkflowStep]:
+    return [_run_command(stage, [sys.executable, "scripts/position_monitoring_stage.py", "--stage", stage], timeout=120)]
 
 
 def stage_aftermarket_collection() -> list[WorkflowStep]:
@@ -218,10 +192,10 @@ STAGE_HANDLERS = {
     "morning_investment_layer": stage_morning_investment_layer,
     "opening_10m_aggressive_layer": lambda: stage_opening_layer(10, "opening_10m_aggressive_layer"),
     "opening_30m_standard_layer": lambda: stage_opening_layer(30, "opening_30m_standard_layer"),
-    "post_opening_monitoring": lambda: stage_monitoring_placeholder("post_opening_monitoring"),
-    "midday_position_review": lambda: stage_monitoring_placeholder("midday_position_review"),
-    "pre_close_risk_review": lambda: stage_monitoring_placeholder("pre_close_risk_review"),
-    "evening_selloff_layer": lambda: stage_monitoring_placeholder("evening_selloff_layer"),
+    "post_opening_monitoring": lambda: stage_monitoring("post_opening_monitoring"),
+    "midday_position_review": lambda: stage_monitoring("midday_position_review"),
+    "pre_close_risk_review": lambda: stage_monitoring("pre_close_risk_review"),
+    "evening_selloff_layer": lambda: [_run_command("evening_selloff_layer", [sys.executable, "scripts/evening_selloff_layer.py"], timeout=120)],
     "aftermarket_multi_timeframe_collection": stage_aftermarket_collection,
     "stock_nightly_collection": stage_stock_nightly_collection,
     "daily_pnl_feedback_report": stage_daily_pnl_feedback_report,

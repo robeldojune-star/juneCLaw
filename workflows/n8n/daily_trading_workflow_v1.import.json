@@ -443,44 +443,329 @@
         980,
         -120
       ]
+    },
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "hour": 10,
+              "minute": 0
+            }
+          ]
+        }
+      },
+      "id": "cron-1000-post-opening-monitoring",
+      "name": "10:00 post_opening_monitoring",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        120,
+        920
+      ]
+    },
+    {
+      "parameters": {
+        "command": "cd /home/june/trading && python3 scripts/run_daily_workflow_stage.py --stage post_opening_monitoring"
+      },
+      "id": "exec-post-opening-monitoring",
+      "name": "Run post_opening_monitoring",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        400,
+        920
+      ]
+    },
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "hour": 11,
+              "minute": 30
+            }
+          ]
+        }
+      },
+      "id": "cron-1130-midday-position-review",
+      "name": "11:30 midday_position_review",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        120,
+        1100
+      ]
+    },
+    {
+      "parameters": {
+        "command": "cd /home/june/trading && python3 scripts/run_daily_workflow_stage.py --stage midday_position_review"
+      },
+      "id": "exec-midday-position-review",
+      "name": "Run midday_position_review",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        400,
+        1100
+      ]
+    },
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "hour": 14,
+              "minute": 30
+            }
+          ]
+        }
+      },
+      "id": "cron-1430-pre-close-risk-review",
+      "name": "14:30 pre_close_risk_review",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        120,
+        1280
+      ]
+    },
+    {
+      "parameters": {
+        "command": "cd /home/june/trading && python3 scripts/run_daily_workflow_stage.py --stage pre_close_risk_review"
+      },
+      "id": "exec-pre-close-risk-review",
+      "name": "Run pre_close_risk_review",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        400,
+        1280
+      ]
+    },
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "hour": 15,
+              "minute": 20
+            }
+          ]
+        }
+      },
+      "id": "cron-1520-aftermarket-multi-timefr",
+      "name": "15:20 aftermarket_multi_timeframe_collection",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        120,
+        1460
+      ]
+    },
+    {
+      "parameters": {
+        "command": "cd /home/june/trading && python3 scripts/run_daily_workflow_stage.py --stage aftermarket_multi_timeframe_collection"
+      },
+      "id": "exec-aftermarket-multi-timeframe-coll",
+      "name": "Run aftermarket_multi_timeframe_collection",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        400,
+        1460
+      ]
+    },
+    {
+      "parameters": {
+        "command": "cd /home/june/trading && python3 scripts/check_telegram_connection.py"
+      },
+      "id": "exec-telegram-connection-check",
+      "name": "Telegram connection check",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        980,
+        120
+      ]
     }
   ],
   "connections": {
     "06:50 system_health_check": {
-      "main": [[{"node": "Run system_health_check", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Run system_health_check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "07:00 news_briefing_growth_analysis": {
-      "main": [[{"node": "Run news_briefing_growth_analysis", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Run news_briefing_growth_analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "07:30 stock_morning_signals": {
-      "main": [[{"node": "Run stock_morning_signals", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Run stock_morning_signals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "08:00 stock_trading_daily_workflow": {
-      "main": [[{"node": "Run stock_trading_daily_workflow", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Run stock_trading_daily_workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "08:30 premarket_account_risk_check": {
-      "main": [[{"node": "Run premarket_account_risk_check", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Run premarket_account_risk_check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "08:45 candidate_compression_layer": {
-      "main": [[{"node": "Run candidate_compression_layer", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Run candidate_compression_layer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "09:00 morning_investment_layer": {
-      "main": [[{"node": "Run morning_investment_layer", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Run morning_investment_layer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "09:10 opening_10m_aggressive_layer": {
-      "main": [[{"node": "Run opening_10m_aggressive_layer", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Run opening_10m_aggressive_layer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "09:30 opening_30m_standard_layer": {
-      "main": [[{"node": "Run opening_30m_standard_layer", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Run opening_30m_standard_layer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "15:00 evening_selloff_layer": {
-      "main": [[{"node": "Run evening_selloff_layer", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Run evening_selloff_layer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "15:40 stock_nightly_collection": {
-      "main": [[{"node": "Run stock_nightly_collection", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Run stock_nightly_collection",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "16:10 daily_pnl_feedback_report": {
-      "main": [[{"node": "Run daily_pnl_feedback_report", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Run daily_pnl_feedback_report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "10:00 post_opening_monitoring": {
+      "main": [
+        [
+          {
+            "node": "Run post_opening_monitoring",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "11:30 midday_position_review": {
+      "main": [
+        [
+          {
+            "node": "Run midday_position_review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "14:30 pre_close_risk_review": {
+      "main": [
+        [
+          {
+            "node": "Run pre_close_risk_review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "15:20 aftermarket_multi_timeframe_collection": {
+      "main": [
+        [
+          {
+            "node": "Run aftermarket_multi_timeframe_collection",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
@@ -491,7 +776,7 @@
   "pinData": {},
   "meta": {
     "templateCredsSetupCompleted": false,
-    "description": "Draft n8n import workflow for /home/june/trading daily multi-AI operations. Telegram credential must be wired after import."
+    "description": "Draft n8n import workflow for /home/june/trading daily multi-AI operations. Includes monitoring/selloff stages. Telegram credential must be wired after import."
   },
   "active": false,
   "versionId": "daily_trading_workflow_v1-draft",

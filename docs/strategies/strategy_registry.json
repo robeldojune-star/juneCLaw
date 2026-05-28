@@ -176,11 +176,23 @@
     "runner": "scripts/run_daily_workflow_stage.py",
     "pnl_report": "scripts/daily_pnl_feedback_report.py",
     "json_schema_doc": "docs/strategies/workflow_json_schema_v1.md",
-    "telegram_status": "credential_placeholder; wire in n8n after import",
+    "telegram_status": "blocked_until_n8n_credential_or_TELEGRAM_BOT_TOKEN_CHAT_ID",
     "opening_strategy_connection": {
       "09:10": "run_daily_workflow_stage.py --stage opening_10m_aggressive_layer",
       "09:30": "run_daily_workflow_stage.py --stage opening_30m_standard_layer",
       "safety": "alert/mock only until ka10005 timeframe and 90d intraday backtest are validated"
-    }
+    },
+    "n8n_import_status": "blocked_until_N8N_API_KEY_or_manual_UI_import",
+    "implemented_stage_scripts": {
+      "news_briefing_growth_analysis": "scripts/news_briefing_growth_analysis.py",
+      "candidate_compression_layer": "scripts/candidate_compression_layer.py",
+      "post_opening_monitoring": "scripts/position_monitoring_stage.py --stage post_opening_monitoring",
+      "midday_position_review": "scripts/position_monitoring_stage.py --stage midday_position_review",
+      "pre_close_risk_review": "scripts/position_monitoring_stage.py --stage pre_close_risk_review",
+      "evening_selloff_layer": "scripts/evening_selloff_layer.py",
+      "n8n_import": "scripts/import_n8n_daily_workflow.py",
+      "telegram_check": "scripts/check_telegram_connection.py"
+    },
+    "connection_guide": "docs/strategies/n8n_import_telegram_connection_guide.md"
   }
 }
