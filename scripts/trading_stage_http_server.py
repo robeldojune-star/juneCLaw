@@ -38,6 +38,10 @@ ALLOWED_STAGES = {
     "aftermarket_multi_timeframe_collection",
     "stock_nightly_collection",
     "daily_pnl_feedback_report",
+    "ka10005_timeframe_validation",
+    "collect_intraday_90d",
+    "backtest_opening_strategy_90d",
+    "simulate_approved_orders",
     "strategy_review_if_needed",
 }
 

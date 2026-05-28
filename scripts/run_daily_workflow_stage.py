@@ -40,6 +40,10 @@ STAGE_META: dict[str, dict[str, str]] = {
     "aftermarket_multi_timeframe_collection": {"model_grade": "none", "time": "15:20"},
     "stock_nightly_collection": {"model_grade": "none", "time": "15:40"},
     "daily_pnl_feedback_report": {"model_grade": "medium", "time": "16:10"},
+    "ka10005_timeframe_validation": {"model_grade": "none", "time": "09:20"},
+    "collect_intraday_90d": {"model_grade": "none", "time": "15:50"},
+    "backtest_opening_strategy_90d": {"model_grade": "medium", "time": "20:30"},
+    "simulate_approved_orders": {"model_grade": "low", "time": "09:35"},
     "strategy_review_if_needed": {"model_grade": "high", "time": "20:00"},
 }
 
@@ -186,6 +190,22 @@ def stage_daily_pnl_feedback_report() -> list[WorkflowStep]:
     return [_run_command("daily_pnl_feedback_report", [sys.executable, "scripts/daily_pnl_feedback_report.py"], timeout=180)]
 
 
+def stage_ka10005_timeframe_validation() -> list[WorkflowStep]:
+    return [_run_command("ka10005_timeframe_validation", [sys.executable, "scripts/validate_ka10005_timeframe.py"], timeout=180)]
+
+
+def stage_collect_intraday_90d() -> list[WorkflowStep]:
+    return [_run_command("collect_intraday_90d", [sys.executable, "scripts/collect_intraday_90d.py", "--stock-codes", "005930", "000660", "035420", "005380", "068270", "--time-frame", "1min"], timeout=300)]
+
+
+def stage_backtest_opening_strategy_90d() -> list[WorkflowStep]:
+    return [_run_command("backtest_opening_strategy_90d", [sys.executable, "scripts/backtest_opening_strategy.py", "--stock-codes", "005930", "000660", "035420", "005380", "068270", "--days", "130", "--time-frame", "1min"], timeout=300)]
+
+
+def stage_simulate_approved_orders() -> list[WorkflowStep]:
+    return [_run_command("simulate_approved_orders", [sys.executable, "scripts/simulate_approved_orders.py", "--window", "30", "--max-orders", "3", "--total-budget", "1000000", "--per-stock-budget", "300000"], timeout=300)]
+
+
 STAGE_HANDLERS = {
     "system_health_check": stage_system_health_check,
     "news_briefing_growth_analysis": stage_news_briefing_growth_analysis,
@@ -203,6 +223,10 @@ STAGE_HANDLERS = {
     "aftermarket_multi_timeframe_collection": stage_aftermarket_collection,
     "stock_nightly_collection": stage_stock_nightly_collection,
     "daily_pnl_feedback_report": stage_daily_pnl_feedback_report,
+    "ka10005_timeframe_validation": stage_ka10005_timeframe_validation,
+    "collect_intraday_90d": stage_collect_intraday_90d,
+    "backtest_opening_strategy_90d": stage_backtest_opening_strategy_90d,
+    "simulate_approved_orders": stage_simulate_approved_orders,
     "strategy_review_if_needed": lambda: [WorkflowStep(name="strategy_review_manual_gate", ok=True, status="blocked", summary="run only when daily/weekly feedback requires strategy changes", blocking_conditions=["manual_strategy_review_gate"])],
 }
 

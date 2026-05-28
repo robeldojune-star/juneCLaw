@@ -41,31 +41,58 @@ class SupabaseRestClient:
         if not self.url or not self.key:
             raise SupabaseRestError("missing_supabase_url_or_key")
 
+    def _request_json(self, method: str, endpoint: str, *, body: Any = None, timeout: int = 20, prefer: str | None = None) -> Any:
+        data = None
+        headers = {
+            "apikey": self.key,
+            "Authorization": f"Bearer {self.key}",
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+        }
+        if prefer:
+            headers["Prefer"] = prefer
+        if body is not None:
+            data = json.dumps(body, ensure_ascii=False).encode("utf-8")
+        req = Request(endpoint, headers=headers, method=method.upper(), data=data)
+        try:
+            with urlopen(req, timeout=timeout) as resp:
+                raw = resp.read().decode("utf-8", errors="replace")
+                return json.loads(raw) if raw else []
+        except HTTPError as exc:
+            raw = exc.read().decode("utf-8", errors="replace")[-1200:]
+            raise SupabaseRestError(f"http_{exc.code}: {raw}") from exc
+        except URLError as exc:
+            raise SupabaseRestError(f"url_error: {exc.reason}") from exc
+
     def get(self, table: str, params: dict[str, str] | None = None, *, timeout: int = 20) -> list[dict[str, Any]]:
         query = urlencode(params or {})
         endpoint = f"{self.url}/rest/v1/{table}" + (f"?{query}" if query else "")
-        req = Request(
-            endpoint,
-            headers={
-                "apikey": self.key,
-                "Authorization": f"Bearer {self.key}",
-                "Accept": "application/json",
-                "Prefer": "count=exact",
-            },
-            method="GET",
-        )
-        try:
-            with urlopen(req, timeout=timeout) as resp:
-                body = resp.read().decode("utf-8", errors="replace")
-                data = json.loads(body) if body else []
-        except HTTPError as exc:
-            body = exc.read().decode("utf-8", errors="replace")[-1000:]
-            raise SupabaseRestError(f"http_{exc.code}_{table}: {body}") from exc
-        except URLError as exc:
-            raise SupabaseRestError(f"url_error_{table}: {exc.reason}") from exc
+        data = self._request_json("GET", endpoint, timeout=timeout, prefer="count=exact")
         if not isinstance(data, list):
             raise SupabaseRestError(f"unexpected_rest_shape_{table}")
         return [row for row in data if isinstance(row, dict)]
+
+    def insert_rows(self, table: str, rows: list[dict[str, Any]], *, timeout: int = 20) -> list[dict[str, Any]]:
+        if not rows:
+            return []
+        endpoint = f"{self.url}/rest/v1/{table}"
+        data = self._request_json("POST", endpoint, body=rows, timeout=timeout, prefer="return=representation")
+        if isinstance(data, list):
+            return [row for row in data if isinstance(row, dict)]
+        if isinstance(data, dict):
+            return [data]
+        return []
+
+    def upsert_rows(self, table: str, rows: list[dict[str, Any]], *, on_conflict: str, timeout: int = 20) -> list[dict[str, Any]]:
+        if not rows:
+            return []
+        endpoint = f"{self.url}/rest/v1/{table}?on_conflict={on_conflict}"
+        data = self._request_json("POST", endpoint, body=rows, timeout=timeout, prefer="resolution=merge-duplicates,return=representation")
+        if isinstance(data, list):
+            return [row for row in data if isinstance(row, dict)]
+        if isinstance(data, dict):
+            return [data]
+        return []
 
 
 def num(value: Any) -> float:

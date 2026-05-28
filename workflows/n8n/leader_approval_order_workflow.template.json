@@ -1,5 +1,5 @@
 {
-  "name": "leader_approval_order_workflow_v1_template",
+  "name": "leader_approval_order_workflow_v1_template_docker",
   "active": false,
   "nodes": [
     {
@@ -10,7 +10,10 @@
       "name": "README Leader Approval",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [-520, -260]
+      "position": [
+        -520,
+        -260
+      ]
     },
     {
       "parameters": {},
@@ -18,27 +21,52 @@
       "name": "Manual Trigger - approval dry run",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
-      "position": [-520, 40]
+      "position": [
+        -520,
+        40
+      ]
     },
     {
       "parameters": {
-        "command": "cd /home/june/trading && python3 scripts/run_opening_strategy_candidate_loop.py --window 30 --limit 10"
+        "method": "POST",
+        "url": "http://trading-runner:8765/run-stage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"stage\": \"opening_30m_standard_layer\", \"timeout\": 300, \"notify\": true}",
+        "options": {
+          "timeout": 700000
+        }
       },
       "id": "exec-opening-candidates",
       "name": "Get opening candidates",
-      "type": "n8n-nodes-base.executeCommand",
-      "typeVersion": 1,
-      "position": [-260, 40]
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -260,
+        40
+      ],
+      "notes": "Docker runner call for opening candidate loop"
     },
     {
       "parameters": {
-        "command": "cd /home/june/trading && python3 scripts/run_daily_workflow_stage.py --stage premarket_account_risk_check"
+        "method": "POST",
+        "url": "http://trading-runner:8765/run-stage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"stage\": \"premarket_account_risk_check\", \"timeout\": 180, \"notify\": true}",
+        "options": {
+          "timeout": 700000
+        }
       },
       "id": "exec-risk-check",
       "name": "Monitoring AI risk check",
-      "type": "n8n-nodes-base.executeCommand",
-      "typeVersion": 1,
-      "position": [20, 40]
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        20,
+        40
+      ],
+      "notes": "Docker runner call for risk check"
     },
     {
       "parameters": {
@@ -48,15 +76,79 @@
       "name": "Telegram approval placeholder",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [300, -120]
+      "position": [
+        300,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://trading-runner:8765/run-stage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"stage\": \"opening_30m_standard_layer\", \"timeout\": 300, \"notify\": true}",
+        "options": {
+          "timeout": 700000
+        }
+      },
+      "id": "exec-simulated-orders",
+      "name": "Simulate approved orders (paper)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        300,
+        40
+      ],
+      "notes": "Placeholder chain marker; use scripts/simulate_approved_orders.py from manual/runner until dedicated endpoint is added"
+    },
+    {
+      "parameters": {
+        "content": "모의 주문 실행은 `scripts/simulate_approved_orders.py`를 사용하세요.\n\n현재 템플릿에서는 Docker runner를 통한 stage 호출만 수행합니다.\n실제 모의 주문은 별도 runner endpoint 확장 또는 수동 트리거 스크립트로 연결하세요."
+      },
+      "id": "note-paper-order-guide",
+      "name": "Paper order guide",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        560,
+        -140
+      ]
     }
   ],
   "connections": {
     "Manual Trigger - approval dry run": {
-      "main": [[{"node": "Get opening candidates", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Get opening candidates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Get opening candidates": {
-      "main": [[{"node": "Monitoring AI risk check", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Monitoring AI risk check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Monitoring AI risk check": {
+      "main": [
+        [
+          {
+            "node": "Simulate approved orders (paper)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
@@ -65,5 +157,9 @@
   },
   "meta": {
     "description": "Approval-only Leader AI workflow template. No live orders."
-  }
+  },
+  "id": "leader_approval_order_workflow_v1",
+  "staticData": null,
+  "pinData": {},
+  "versionId": "leader_approval_order_workflow_v1-template"
 }

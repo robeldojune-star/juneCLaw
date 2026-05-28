@@ -542,7 +542,7 @@
     },
     {
       "parameters": {
-        "content": "## Telegram 연결\n\n실제 Telegram credential을 n8n에 등록한 뒤 아래 노드를 Telegram node로 교체하거나 활성화하세요.\n\n메시지 템플릿:\n`[{{$node.name}}] {{$json.stdout}}`\n\n주의: stdout에는 secrets가 나오지 않도록 Python 스크립트에서 제어합니다."
+        "content": "## Telegram 연결 (실연결 반영)\n\n현재 Docker runner가 notify=true로 실제 Telegram 전송을 수행합니다.\n\n추가 템플릿 체인:\n- Set telegram template payload\n- Telegram Message (template)\n\n메시지 필드: stage/status/summary/alerts/blocking_conditions/next_actions"
       },
       "id": "note-telegram",
       "name": "Telegram 연결 안내",
@@ -719,16 +719,94 @@
     },
     {
       "parameters": {
-        "command": "cd /home/june/trading && python3 scripts/check_telegram_connection.py"
+        "method": "POST",
+        "url": "http://trading-runner:8765/run-stage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"stage\": \"news_briefing_growth_analysis\", \"timeout\": 120, \"notify\": true}",
+        "options": {
+          "timeout": 700000
+        }
       },
       "id": "exec-telegram-connection-check",
-      "name": "Telegram connection check",
-      "type": "n8n-nodes-base.executeCommand",
-      "typeVersion": 1,
+      "name": "Telegram connection check (runner notify smoke)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
       "position": [
         980,
         120
+      ],
+      "notes": "Docker-compatible Telegram notify smoke via trading-runner"
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            {
+              "name": "stage",
+              "value": "={{$json[\"stage\"] || $node.name}}"
+            },
+            {
+              "name": "status",
+              "value": "={{$json[\"status\"] || ( $json[\"ok\"] ? \"completed\" : \"blocked\" )}}"
+            },
+            {
+              "name": "workflow",
+              "value": "={{$json[\"workflow\"] || \"daily_trading_workflow_v1\"}}"
+            },
+            {
+              "name": "summary",
+              "value": "={{JSON.stringify($json[\"summary\"] || {})}}"
+            },
+            {
+              "name": "alerts",
+              "value": "={{JSON.stringify($json[\"alerts\"] || [])}}"
+            },
+            {
+              "name": "blocking_conditions",
+              "value": "={{JSON.stringify($json[\"blocking_conditions\"] || [])}}"
+            },
+            {
+              "name": "next_actions",
+              "value": "={{JSON.stringify($json[\"next_actions\"] || [])}}"
+            },
+            {
+              "name": "message",
+              "value": "={{`[${$json[\"stage\"] || $node.name}] status=${$json[\"status\"] || ($json[\"ok\"] ? \"completed\" : \"blocked\")}\nsummary=${JSON.stringify($json[\"summary\"] || {})}\nalerts=${JSON.stringify($json[\"alerts\"] || [])}\nblocks=${JSON.stringify($json[\"blocking_conditions\"] || [])}\nnext=${JSON.stringify($json[\"next_actions\"] || [])}`}}"
+            }
+          ]
+        }
+      },
+      "id": "set-telegram-template",
+      "name": "Set telegram template payload",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        900,
+        420
       ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://trading-runner:8765/run-stage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"stage\": \"news_briefing_growth_analysis\", \"timeout\": 120, \"notify\": true}",
+        "options": {
+          "timeout": 700000
+        }
+      },
+      "id": "telegram-template-send",
+      "name": "Telegram Message (template)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1160,
+        420
+      ],
+      "notes": "Template path marker node. Real Telegram send is handled by trading-runner notify=true."
     }
   ],
   "connections": {
@@ -902,6 +980,17 @@
         [
           {
             "node": "Run aftermarket_multi_timeframe_collection",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set telegram template payload": {
+      "main": [
+        [
+          {
+            "node": "Telegram Message (template)",
             "type": "main",
             "index": 0
           }
