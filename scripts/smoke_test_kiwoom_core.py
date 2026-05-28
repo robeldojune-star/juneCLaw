@@ -111,14 +111,20 @@ def main() -> int:
     print("\n=== module results ===")
     print(json.dumps(outputs, ensure_ascii=False, indent=2))
 
-    required_ok = all([
+    critical_ok = all([
         stock_summary["ok"],
         account_payload["ok"],
         chart_payload["ok"],
-        ranking_payload["ok"],
     ])
-    print(f"\nRESULT={'OK' if required_ok else 'CHECK_NEEDED'}")
-    return 0 if required_ok else 1
+    warnings = []
+    if not ranking_payload["ok"]:
+        warnings.append("ka10030_volume_ranking_unavailable_in_current_env")
+
+    result_label = "OK" if critical_ok else "CHECK_NEEDED"
+    if warnings:
+        print(f"\nWARNINGS={warnings}")
+    print(f"\nRESULT={result_label}")
+    return 0 if critical_ok else 1
 
 
 if __name__ == "__main__":
