@@ -158,5 +158,16 @@
         "+2.0%"
       ]
     }
+  },
+  "daily_multi_ai_n8n_workflow": {
+    "status": "design_ready_import_pending",
+    "document": "docs/strategies/daily_multi_ai_n8n_workflow_v1.md",
+    "machine_readable": "workflows/n8n/daily_multi_ai_workflow_v1.json",
+    "key_principles": [
+      "pre-market analysis and real-time execution must be separated",
+      "daily PnL feedback report drives strategy iteration",
+      "V-factor is auxiliary for day trading, not primary entry signal",
+      "high-grade models for strategy research, lower-grade/Python for daily operations"
+    ]
   }
 }

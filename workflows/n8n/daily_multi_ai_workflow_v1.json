@@ -1,0 +1,173 @@
+{
+  "version": "1.0",
+  "status": "design_ready_import_pending",
+  "workspace": "/home/june/trading",
+  "document": "docs/strategies/daily_multi_ai_n8n_workflow_v1.md",
+  "user_sample_schedule": [
+    {
+      "time": "07:00",
+      "workflow": "news_briefing_growth_analysis",
+      "purpose": "아침 브리핑: 뉴스 수집 → 텔레그램 전송"
+    },
+    {
+      "time": "07:30",
+      "workflow": "stock-morning-signals",
+      "purpose": "장 전 매매 신호 생성"
+    },
+    {
+      "time": "08:00",
+      "workflow": "stock_trading_daily_workflow",
+      "purpose": "메인 거래 워크플로우: ETL → 지표 → 신호 → 주문 체크 → 텔레그램 보고"
+    },
+    {
+      "time": "09:00",
+      "workflow": "morning_investment_layer",
+      "purpose": "실전 투자 아침 실행"
+    },
+    {
+      "time": "09:30",
+      "workflow": "stock_trading_workflow",
+      "purpose": "추가 거래 워크플로우 테스트"
+    },
+    {
+      "time": "15:00",
+      "workflow": "evening_selloff_layer + aftermarket_multi_timeframe_collection",
+      "purpose": "장후 매도 및 멀티타임프레임 수집"
+    },
+    {
+      "time": "15:40",
+      "workflow": "stock-nightly-collection",
+      "purpose": "야간 OHLCV 수집"
+    }
+  ],
+  "recommended_schedule": [
+    {
+      "time": "06:50",
+      "workflow": "system_health_check",
+      "owner": "Monitoring AI / n8n",
+      "model_grade": "low_or_none",
+      "purpose": "서버, 환경변수 존재, Supabase/Kiwoom/OpenDART 최소 연결 확인"
+    },
+    {
+      "time": "07:00",
+      "workflow": "news_briefing_growth_analysis",
+      "owner": "Research AI",
+      "model_grade": "medium_high",
+      "purpose": "뉴스/공시/성장 테마 브리핑"
+    },
+    {
+      "time": "07:30",
+      "workflow": "stock_morning_signals",
+      "owner": "Research AI",
+      "model_grade": "medium",
+      "purpose": "전일 확정 데이터 기반 장전 후보군 생성"
+    },
+    {
+      "time": "08:00",
+      "workflow": "stock_trading_daily_workflow",
+      "owner": "n8n + Python core",
+      "model_grade": "low_medium",
+      "purpose": "ETL 점검, 지표, 신호, 주문 후보 점검, 텔레그램 보고"
+    },
+    {
+      "time": "08:30",
+      "workflow": "premarket_account_risk_check",
+      "owner": "Monitoring AI",
+      "model_grade": "low",
+      "purpose": "kt00004 계좌/예수금/보유종목/위험 이벤트 확인"
+    },
+    {
+      "time": "08:45",
+      "workflow": "candidate_compression_layer",
+      "owner": "Leader AI",
+      "model_grade": "medium",
+      "purpose": "실시간 감시할 TOP 5~10 종목 압축"
+    },
+    {
+      "time": "09:00",
+      "workflow": "morning_investment_layer",
+      "owner": "Leader AI",
+      "model_grade": "low",
+      "purpose": "장 시작 스냅샷 안정화, 즉시 매수 금지, 관찰 시작"
+    },
+    {
+      "time": "09:10",
+      "workflow": "opening_10m_aggressive_layer",
+      "owner": "Research/Leader AI",
+      "model_grade": "low",
+      "purpose": "OR10 공격형 후보 알림/모의"
+    },
+    {
+      "time": "09:30",
+      "workflow": "opening_30m_standard_layer",
+      "owner": "Research/Leader AI",
+      "model_grade": "low",
+      "purpose": "OR30 표준형 기본 BUY 후보 판단"
+    },
+    {
+      "time": "10:00",
+      "workflow": "post_opening_monitoring",
+      "owner": "Monitoring AI",
+      "model_grade": "low",
+      "purpose": "진입 실패/미체결/후보 탈락 이유 기록"
+    },
+    {
+      "time": "11:30",
+      "workflow": "midday_position_review",
+      "owner": "Monitoring AI",
+      "model_grade": "low",
+      "purpose": "보유종목 손익과 리스크 점검"
+    },
+    {
+      "time": "14:30",
+      "workflow": "pre_close_risk_review",
+      "owner": "Monitoring AI",
+      "model_grade": "low",
+      "purpose": "손절/익절/당일 청산 후보 점검"
+    },
+    {
+      "time": "15:00",
+      "workflow": "evening_selloff_layer",
+      "owner": "Leader/Monitoring AI",
+      "model_grade": "low",
+      "purpose": "당일 청산, 매도 후보, 위험 축소"
+    },
+    {
+      "time": "15:20",
+      "workflow": "aftermarket_multi_timeframe_collection",
+      "owner": "Python core",
+      "model_grade": "none",
+      "purpose": "분봉/일봉/멀티타임프레임 데이터 수집"
+    },
+    {
+      "time": "15:40",
+      "workflow": "stock_nightly_collection",
+      "owner": "Python core / n8n",
+      "model_grade": "none",
+      "purpose": "OHLCV 확정 수집, 지표 재계산 준비"
+    },
+    {
+      "time": "16:10",
+      "workflow": "daily_pnl_feedback_report",
+      "owner": "Monitoring AI",
+      "model_grade": "medium",
+      "purpose": "당일 손익, 신호 대비 실행, 실패 원인 분석"
+    },
+    {
+      "time": "20:00",
+      "workflow": "strategy_review_if_needed",
+      "owner": "Hermes / Research AI",
+      "model_grade": "high",
+      "purpose": "필요 시 전략 개선안 작성"
+    }
+  ],
+  "operating_principles": {
+    "separate_preanalysis_from_realtime": true,
+    "no_heavy_analysis_after_market_open": true,
+    "daily_pnl_feedback_required": true,
+    "store_ephemeral_logs_in_db_or_reports_not_memory": true,
+    "store_reusable_lessons_in_skills_or_compact_memory": true,
+    "v_factor_for_day_trading": "use_as_auxiliary_risk_filter_not_primary_entry_factor",
+    "model_cost_policy": "high_model_for_strategy_research_low_model_or_python_for_daily_operations"
+  }
+}
