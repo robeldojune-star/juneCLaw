@@ -1,0 +1,69 @@
+{
+  "name": "leader_approval_order_workflow_v1_template",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "content": "# Leader AI 승인형 주문 Workflow\n\n초기 템플릿입니다. 자동 주문 API는 연결하지 않았습니다.\n1) opening candidate loop 결과를 입력\n2) blocking_conditions 검사\n3) Monitoring AI 리스크 확인\n4) Telegram/Manual 승인\n5) 승인 결과만 기록\n\n실제 Kiwoom 주문 실행은 별도 approved_order_execution workflow로 분리하세요."
+      },
+      "id": "note-leader-approval",
+      "name": "README Leader Approval",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-520, -260]
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger - approval dry run",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [-520, 40]
+    },
+    {
+      "parameters": {
+        "command": "cd /home/june/trading && python3 scripts/run_opening_strategy_candidate_loop.py --window 30 --limit 10"
+      },
+      "id": "exec-opening-candidates",
+      "name": "Get opening candidates",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [-260, 40]
+    },
+    {
+      "parameters": {
+        "command": "cd /home/june/trading && python3 scripts/run_daily_workflow_stage.py --stage premarket_account_risk_check"
+      },
+      "id": "exec-risk-check",
+      "name": "Monitoring AI risk check",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [20, 40]
+    },
+    {
+      "parameters": {
+        "content": "Telegram 승인 노드를 여기에 연결하세요. 메시지에는 후보 종목, score_details, blocking_conditions, 예산/수량 후보를 포함합니다. 초기에는 승인 결과 기록만 하고 주문 API는 호출하지 않습니다."
+      },
+      "id": "note-telegram-approval",
+      "name": "Telegram approval placeholder",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [300, -120]
+    }
+  ],
+  "connections": {
+    "Manual Trigger - approval dry run": {
+      "main": [[{"node": "Get opening candidates", "type": "main", "index": 0}]]
+    },
+    "Get opening candidates": {
+      "main": [[{"node": "Monitoring AI risk check", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Seoul"
+  },
+  "meta": {
+    "description": "Approval-only Leader AI workflow template. No live orders."
+  }
+}

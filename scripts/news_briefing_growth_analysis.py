@@ -13,6 +13,7 @@ import json
 from pathlib import Path
 import subprocess
 import sys
+from typing import Any
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -45,30 +46,54 @@ def run_optional_opendart_smoke() -> dict[str, object]:
     }
 
 
+def run_news_collector() -> dict[str, Any]:
+    script = PROJECT_ROOT / "scripts" / "collect_news_rss.py"
+    try:
+        proc = subprocess.run(
+            [sys.executable, str(script), "--per-source-limit", "5", "--total-limit", "25"],
+            cwd=PROJECT_ROOT,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=60,
+            check=False,
+        )
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "blocking_conditions": ["news_collector_failed"], "error": f"{type(exc).__name__}: {exc}"}
+    try:
+        data = json.loads(proc.stdout)
+    except json.JSONDecodeError:
+        return {"ok": False, "blocking_conditions": ["news_collector_invalid_json"], "stdout_tail": proc.stdout[-1000:], "stderr_tail": proc.stderr[-800:]}
+    if proc.returncode != 0 and not data.get("blocking_conditions"):
+        data.setdefault("blocking_conditions", []).append("news_collector_failed")
+    return data
+
+
 def main() -> int:
     env = read_env()
     blocks: list[str] = []
     alerts: list[str] = []
+    news = run_news_collector()
+    blocks.extend(str(x) for x in news.get("blocking_conditions", []))
     data_sources = {
         "opendart_key_present": bool(env.get("OPENDART_API_KEY") or env.get("DART_API_KEY")),
-        "dedicated_news_collector": False,
+        "rss_news_collector": bool(news.get("summary", {}).get("collected_item_count", 0)),
         "telegram_env_present": bool(env.get("TELEGRAM_BOT_TOKEN") and env.get("TELEGRAM_CHAT_ID")),
     }
 
-    if not data_sources["dedicated_news_collector"]:
-        blocks.append("news_collector_not_implemented")
     if not data_sources["opendart_key_present"]:
-        blocks.append("opendart_key_missing_or_not_configured")
+        alerts.append("opendart_key_missing_or_not_configured")
 
     opendart = None
     if data_sources["opendart_key_present"]:
         opendart = run_optional_opendart_smoke()
         if opendart.get("blocking_condition"):
-            blocks.append(str(opendart["blocking_condition"]))
+            alerts.append(str(opendart["blocking_condition"]))
 
     if not data_sources["telegram_env_present"]:
         alerts.append("telegram_env_missing_n8n_credential_required")
 
+    items = news.get("items", [])[:15] if isinstance(news.get("items"), list) else []
     out = {
         "ok": not blocks,
         "workflow": "daily_trading_workflow_v1",
@@ -78,20 +103,21 @@ def main() -> int:
         "summary": {
             "title": "아침 뉴스/성장성 브리핑",
             "data_sources": data_sources,
-            "message": "전용 뉴스 수집기가 구현되기 전까지 OpenDART/기존 리포트 기반 점검만 수행합니다.",
+            "news_item_count": len(items),
             "telegram_ready": data_sources["telegram_env_present"],
         },
+        "news_items": items,
         "opendart_smoke": opendart,
         "briefing_sections": [
-            "시장 주요 뉴스: dedicated collector 필요",
-            "공시/재무 이벤트: OpenDART 연결 후 자동화",
-            "성장 테마 후보: 뉴스 collector + Research AI 요약 연결 필요",
+            f"시장/성장 뉴스 {len(items)}건 수집",
+            "공시/재무 이벤트: OpenDART 키 연결 시 smoke check 포함",
+            "Research AI 요약 대상: RSS items + blocking/alerts",
         ],
         "blocking_conditions": list(dict.fromkeys(blocks)),
-        "alerts": alerts,
+        "alerts": alerts + [str(x) for x in news.get("alerts", [])],
         "next_actions": [
-            "뉴스 소스/RSS/API를 확정하면 collector를 연결하세요.",
-            "Telegram은 n8n credential 또는 TELEGRAM_BOT_TOKEN/CHAT_ID로 연결하세요.",
+            "n8n Telegram credential 연결 후 news_items를 요약 전송하세요.",
+            "필요하면 Naver/유료 뉴스 API를 config/news_sources.json에 추가하세요.",
         ],
     }
     print(json.dumps(out, ensure_ascii=False, indent=2))

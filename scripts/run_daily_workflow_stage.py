@@ -146,18 +146,22 @@ def stage_morning_investment_layer() -> list[WorkflowStep]:
 
 
 def stage_opening_layer(window: int, stage_name: str) -> list[WorkflowStep]:
-    # Keep one known-liquid stock for initial wiring. Universe loop should be added after 90d intraday validation.
-    limit_bars = 10 if window == 10 else 30
     mode_block = "pattern_model_not_ready_for_auto_order"
-    steps = [_run_command(stage_name, [sys.executable, "scripts/run_opening_strategy_research.py", "--stock-code", "005930", "--limit-bars", str(limit_bars)], timeout=180)]
+    steps = [
+        _run_command(
+            stage_name,
+            [sys.executable, "scripts/run_opening_strategy_candidate_loop.py", "--window", str(window), "--limit", "10"],
+            timeout=300,
+        )
+    ]
     steps.append(
         WorkflowStep(
             name=f"auto_order_guard_{window}m",
             ok=True,
             status="blocked",
-            summary="opening strategy is connected for alert/mock only; auto order disabled until 90d intraday backtest passes",
+            summary="opening strategy evaluates compressed TOP candidates only; auto order disabled until 90d intraday backtest passes",
             blocking_conditions=[mode_block, "ka10005_timeframe_needs_market_hours_validation"],
-            details={"window_minutes": window, "order_execution_enabled": False},
+            details={"window_minutes": window, "order_execution_enabled": False, "candidate_source": "candidate_compression_layer"},
         )
     )
     return steps

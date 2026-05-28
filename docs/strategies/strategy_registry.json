@@ -193,6 +193,17 @@
       "n8n_import": "scripts/import_n8n_daily_workflow.py",
       "telegram_check": "scripts/check_telegram_connection.py"
     },
-    "connection_guide": "docs/strategies/n8n_import_telegram_connection_guide.md"
+    "connection_guide": "docs/strategies/n8n_import_telegram_connection_guide.md",
+    "news_sources": "config/news_sources.json",
+    "news_collector": "scripts/collect_news_rss.py",
+    "opening_candidate_loop": "scripts/run_opening_strategy_candidate_loop.py",
+    "leader_approval_design": "docs/strategies/leader_ai_approval_order_workflow_v1.md",
+    "leader_approval_n8n_template": "workflows/n8n/leader_approval_order_workflow.template.json",
+    "github_push_status": "synced_main_origin_main_before_this_change_set",
+    "current_connection_blocks": [
+      "missing_n8n_api_key",
+      "missing_telegram_bot_token",
+      "missing_telegram_chat_id"
+    ]
   }
 }

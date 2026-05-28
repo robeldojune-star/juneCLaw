@@ -95,3 +95,24 @@ python3 scripts/check_telegram_connection.py
 - 자동 주문 workflow는 별도 승인형으로 분리
 - PAT/API 키/계좌번호는 채팅, Git, 로그에 출력 금지
 ```
+
+---
+
+## 5. 이번 단계 확인 결과
+
+```text
+GitHub push: 완료, main == origin/main 확인
+n8n health: http://127.0.0.1:5678/healthz OK
+n8n API import: N8N_API_KEY 없음으로 blocked
+Telegram test: TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID 없음으로 blocked
+```
+
+구현된 연결:
+
+```text
+news_briefing_growth_analysis -> config/news_sources.json + scripts/collect_news_rss.py
+candidate_compression_layer -> opening strategy candidate loop
+09:10/09:30 opening stage -> TOP 5~10 후보군 루프
+Leader AI approval -> workflows/n8n/leader_approval_order_workflow.template.json
+```
+
