@@ -1,0 +1,62 @@
+# Secrets / local environment
+.env
+.env.*
+!.env.example
+
+# Python cache / bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments / local tools
+venv/
+.venv/
+node_modules/
+
+# Logs / runtime state
+logs/
+*.log
+*.pid
+*.tmp
+*.bak
+*.backup
+
+# Local databases / data dumps
+*.db
+*.sqlite
+*.sqlite3
+*.duckdb
+*.parquet
+*.feather
+
+# Generated reports / charts / data exports / binary research inputs
+reports/
+charts/
+*.csv
+*.txt
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.html
+*.pdf
+*.docx
+*.xlsx
+*.xls
+
+# Local backup/archive folders
+backup_*/
+archive/
+
+# Supabase local state
+.supabase/
+supabase/.temp/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
