@@ -1,0 +1,77 @@
+{
+  "version": "2.0",
+  "strategy_id": "opening_multi_factor_v1",
+  "status": "candidate_thresholds_pending_backtest",
+  "data_basis": {
+    "source": "Kiwoom ka10081 real mock API daily chart",
+    "stock_code": "005930",
+    "base_dt_used": "20260522",
+    "rows_used": 90,
+    "date_range": ["2026-01-09", "2026-05-22"],
+    "intraday_range_pct": {
+      "p25": 2.7054,
+      "median": 3.8042,
+      "p75": 5.6374,
+      "p90": 6.8746,
+      "mean": 4.3291
+    },
+    "open_close_body_abs_pct": {
+      "median": 1.9913,
+      "p75": 3.2993,
+      "p90": 5.3772,
+      "mean": 2.4156
+    },
+    "volume": {
+      "median": 29281318,
+      "p75": 35833749,
+      "p90": 41219635
+    }
+  },
+  "entry_modes": [
+    {
+      "id": "aggressive_10m",
+      "time": "09:10+",
+      "entry_formula": "max(OR10_high, today_open + 0.25 * yesterday_range)",
+      "volume_spike_ratio_min": 1.20,
+      "score_min": 70,
+      "stop_loss": "-0.7% or OR10_low breakdown",
+      "take_profit_1_pct": 0.8,
+      "take_profit_2_pct": 1.6,
+      "usage": "alert/mock only before backtest"
+    },
+    {
+      "id": "standard_30m",
+      "time": "09:30+",
+      "entry_formula": "max(OR30_high * 1.001, today_open + 0.35 * yesterday_range)",
+      "volume_spike_ratio_min": 1.30,
+      "open_gap_pct_range": [0.2, 2.5],
+      "score_min": 70,
+      "stop_loss": "-0.9% or OR30_low breakdown",
+      "take_profit_1_pct": 1.0,
+      "take_profit_2_pct": 2.0,
+      "usage": "default candidate after validation"
+    },
+    {
+      "id": "conservative_high_confidence",
+      "time": "09:30~10:30",
+      "entry_formula": "max(OR30_high * 1.001, today_open + 0.50 * yesterday_range)",
+      "volume_spike_ratio_min": 1.50,
+      "score_min": 80,
+      "stop_loss": "-1.0% or OR30_low breakdown",
+      "take_profit_1_pct": 1.5,
+      "take_profit_2_pct": 2.5,
+      "usage": "approval-based mock candidate"
+    }
+  ],
+  "no_trade_conditions": {
+    "gap_up_pct_gte": 3.0,
+    "gap_down_pct_lte": -1.0,
+    "rsi_gte": 80,
+    "volume_spike_ratio_lt": 1.10,
+    "critical_blocks": [
+      "pattern_model_not_ready_for_auto_order",
+      "ka10005_timeframe_not_validated",
+      "data_quality_failed"
+    ]
+  }
+}
