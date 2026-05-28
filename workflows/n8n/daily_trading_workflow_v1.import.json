@@ -1,0 +1,499 @@
+{
+  "name": "daily_trading_workflow_v1",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "# daily_trading_workflow_v1\n\nHermes/Python 중심 트레이딩 운영 워크플로우입니다.\n- n8n은 스케줄/분기/알림만 담당\n- 계산은 /home/june/trading/scripts/run_daily_workflow_stage.py에서 수행\n- 모든 Execute Command는 표준 JSON을 stdout으로 반환\n- Telegram 노드는 실제 credential 연결 후 활성화하세요"
+      },
+      "id": "note-overview",
+      "name": "README",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -740,
+        -440
+      ]
+    },
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "hour": 6,
+              "minute": 50
+            }
+          ]
+        }
+      },
+      "id": "cron-0650-health",
+      "name": "06:50 system_health_check",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        -620,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "command": "cd /home/june/trading && python3 scripts/run_daily_workflow_stage.py --stage system_health_check"
+      },
+      "id": "exec-health",
+      "name": "Run system_health_check",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        -360,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "hour": 7,
+              "minute": 0
+            }
+          ]
+        }
+      },
+      "id": "cron-0700-news",
+      "name": "07:00 news_briefing_growth_analysis",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        -620,
+        20
+      ]
+    },
+    {
+      "parameters": {
+        "command": "cd /home/june/trading && python3 scripts/run_daily_workflow_stage.py --stage news_briefing_growth_analysis"
+      },
+      "id": "exec-news",
+      "name": "Run news_briefing_growth_analysis",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        -360,
+        20
+      ]
+    },
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "hour": 7,
+              "minute": 30
+            }
+          ]
+        }
+      },
+      "id": "cron-0730-signals",
+      "name": "07:30 stock_morning_signals",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        -620,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "command": "cd /home/june/trading && python3 scripts/run_daily_workflow_stage.py --stage stock_morning_signals"
+      },
+      "id": "exec-morning-signals",
+      "name": "Run stock_morning_signals",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        -360,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "hour": 8,
+              "minute": 0
+            }
+          ]
+        }
+      },
+      "id": "cron-0800-daily",
+      "name": "08:00 stock_trading_daily_workflow",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        -620,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "command": "cd /home/june/trading && python3 scripts/run_daily_workflow_stage.py --stage stock_trading_daily_workflow"
+      },
+      "id": "exec-daily",
+      "name": "Run stock_trading_daily_workflow",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        -360,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "hour": 8,
+              "minute": 30
+            }
+          ]
+        }
+      },
+      "id": "cron-0830-risk",
+      "name": "08:30 premarket_account_risk_check",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        -620,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "command": "cd /home/june/trading && python3 scripts/run_daily_workflow_stage.py --stage premarket_account_risk_check"
+      },
+      "id": "exec-risk",
+      "name": "Run premarket_account_risk_check",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        -360,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "hour": 8,
+              "minute": 45
+            }
+          ]
+        }
+      },
+      "id": "cron-0845-candidates",
+      "name": "08:45 candidate_compression_layer",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        -620,
+        740
+      ]
+    },
+    {
+      "parameters": {
+        "command": "cd /home/june/trading && python3 scripts/run_daily_workflow_stage.py --stage candidate_compression_layer"
+      },
+      "id": "exec-candidates",
+      "name": "Run candidate_compression_layer",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        -360,
+        740
+      ]
+    },
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "hour": 9,
+              "minute": 0
+            }
+          ]
+        }
+      },
+      "id": "cron-0900-morning",
+      "name": "09:00 morning_investment_layer",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        120,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "command": "cd /home/june/trading && python3 scripts/run_daily_workflow_stage.py --stage morning_investment_layer"
+      },
+      "id": "exec-morning",
+      "name": "Run morning_investment_layer",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        400,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "hour": 9,
+              "minute": 10
+            }
+          ]
+        }
+      },
+      "id": "cron-0910-or10",
+      "name": "09:10 opening_10m_aggressive_layer",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        120,
+        20
+      ]
+    },
+    {
+      "parameters": {
+        "command": "cd /home/june/trading && python3 scripts/run_daily_workflow_stage.py --stage opening_10m_aggressive_layer"
+      },
+      "id": "exec-or10",
+      "name": "Run opening_10m_aggressive_layer",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        400,
+        20
+      ]
+    },
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "hour": 9,
+              "minute": 30
+            }
+          ]
+        }
+      },
+      "id": "cron-0930-or30",
+      "name": "09:30 opening_30m_standard_layer",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        120,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "command": "cd /home/june/trading && python3 scripts/run_daily_workflow_stage.py --stage opening_30m_standard_layer"
+      },
+      "id": "exec-or30",
+      "name": "Run opening_30m_standard_layer",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        400,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "hour": 15,
+              "minute": 0
+            }
+          ]
+        }
+      },
+      "id": "cron-1500-selloff",
+      "name": "15:00 evening_selloff_layer",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        120,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "command": "cd /home/june/trading && python3 scripts/run_daily_workflow_stage.py --stage evening_selloff_layer"
+      },
+      "id": "exec-selloff",
+      "name": "Run evening_selloff_layer",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        400,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "hour": 15,
+              "minute": 40
+            }
+          ]
+        }
+      },
+      "id": "cron-1540-nightly",
+      "name": "15:40 stock_nightly_collection",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        120,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "command": "cd /home/june/trading && python3 scripts/run_daily_workflow_stage.py --stage stock_nightly_collection"
+      },
+      "id": "exec-nightly",
+      "name": "Run stock_nightly_collection",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        400,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "hour": 16,
+              "minute": 10
+            }
+          ]
+        }
+      },
+      "id": "cron-1610-pnl",
+      "name": "16:10 daily_pnl_feedback_report",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        120,
+        740
+      ]
+    },
+    {
+      "parameters": {
+        "command": "cd /home/june/trading && python3 scripts/run_daily_workflow_stage.py --stage daily_pnl_feedback_report"
+      },
+      "id": "exec-pnl",
+      "name": "Run daily_pnl_feedback_report",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        400,
+        740
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json[\"stdout\"]}}",
+              "operation": "contains",
+              "value2": "\"blocking_conditions\":[]"
+            }
+          ]
+        }
+      },
+      "id": "if-no-blocks",
+      "name": "IF no blocking_conditions pattern",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        740,
+        290
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Telegram 연결\n\n실제 Telegram credential을 n8n에 등록한 뒤 아래 노드를 Telegram node로 교체하거나 활성화하세요.\n\n메시지 템플릿:\n`[{{$node.name}}] {{$json.stdout}}`\n\n주의: stdout에는 secrets가 나오지 않도록 Python 스크립트에서 제어합니다."
+      },
+      "id": "note-telegram",
+      "name": "Telegram 연결 안내",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        980,
+        -120
+      ]
+    }
+  ],
+  "connections": {
+    "06:50 system_health_check": {
+      "main": [[{"node": "Run system_health_check", "type": "main", "index": 0}]]
+    },
+    "07:00 news_briefing_growth_analysis": {
+      "main": [[{"node": "Run news_briefing_growth_analysis", "type": "main", "index": 0}]]
+    },
+    "07:30 stock_morning_signals": {
+      "main": [[{"node": "Run stock_morning_signals", "type": "main", "index": 0}]]
+    },
+    "08:00 stock_trading_daily_workflow": {
+      "main": [[{"node": "Run stock_trading_daily_workflow", "type": "main", "index": 0}]]
+    },
+    "08:30 premarket_account_risk_check": {
+      "main": [[{"node": "Run premarket_account_risk_check", "type": "main", "index": 0}]]
+    },
+    "08:45 candidate_compression_layer": {
+      "main": [[{"node": "Run candidate_compression_layer", "type": "main", "index": 0}]]
+    },
+    "09:00 morning_investment_layer": {
+      "main": [[{"node": "Run morning_investment_layer", "type": "main", "index": 0}]]
+    },
+    "09:10 opening_10m_aggressive_layer": {
+      "main": [[{"node": "Run opening_10m_aggressive_layer", "type": "main", "index": 0}]]
+    },
+    "09:30 opening_30m_standard_layer": {
+      "main": [[{"node": "Run opening_30m_standard_layer", "type": "main", "index": 0}]]
+    },
+    "15:00 evening_selloff_layer": {
+      "main": [[{"node": "Run evening_selloff_layer", "type": "main", "index": 0}]]
+    },
+    "15:40 stock_nightly_collection": {
+      "main": [[{"node": "Run stock_nightly_collection", "type": "main", "index": 0}]]
+    },
+    "16:10 daily_pnl_feedback_report": {
+      "main": [[{"node": "Run daily_pnl_feedback_report", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Seoul"
+  },
+  "staticData": null,
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "description": "Draft n8n import workflow for /home/june/trading daily multi-AI operations. Telegram credential must be wired after import."
+  },
+  "active": false,
+  "versionId": "daily_trading_workflow_v1-draft",
+  "id": "daily_trading_workflow_v1"
+}

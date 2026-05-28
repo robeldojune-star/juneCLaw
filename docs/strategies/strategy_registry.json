@@ -169,5 +169,18 @@
       "V-factor is auxiliary for day trading, not primary entry signal",
       "high-grade models for strategy research, lower-grade/Python for daily operations"
     ]
+  },
+  "daily_trading_workflow_v1_implementation": {
+    "status": "draft_import_ready_with_blocking_guards",
+    "n8n_import": "workflows/n8n/daily_trading_workflow_v1.import.json",
+    "runner": "scripts/run_daily_workflow_stage.py",
+    "pnl_report": "scripts/daily_pnl_feedback_report.py",
+    "json_schema_doc": "docs/strategies/workflow_json_schema_v1.md",
+    "telegram_status": "credential_placeholder; wire in n8n after import",
+    "opening_strategy_connection": {
+      "09:10": "run_daily_workflow_stage.py --stage opening_10m_aggressive_layer",
+      "09:30": "run_daily_workflow_stage.py --stage opening_30m_standard_layer",
+      "safety": "alert/mock only until ka10005 timeframe and 90d intraday backtest are validated"
+    }
   }
 }
