@@ -1,0 +1,146 @@
+{
+  "version": "1.0",
+  "status": "minimum_research_implementation_ready",
+  "strategy_id": "opening_multi_factor_v1",
+  "strategy_name_ko": "장초반 변동성·수급·90일 패턴 복합 전략",
+  "workspace": "/home/june/trading",
+  "source_documents": [
+    {
+      "docx": "export__1_.docx",
+      "extracted_markdown": "docs/strategy_sources/export__1_.md",
+      "role": "핵심 전략보고서"
+    },
+    {
+      "docx": "export.docx",
+      "extracted_markdown": "docs/strategy_sources/export.md",
+      "role": "진입 수치/실전 조건"
+    },
+    {
+      "docx": "export__2_.docx",
+      "extracted_markdown": "docs/strategy_sources/export__2_.md",
+      "role": "공식/정교화 로직"
+    },
+    {
+      "docx": "export__3_.docx",
+      "extracted_markdown": "docs/strategy_sources/export__3_.md",
+      "role": "90일 패턴/DTW"
+    },
+    {
+      "docx": "export__5_.docx",
+      "extracted_markdown": "docs/strategy_sources/export__5_.md",
+      "role": "오프닝 레인지"
+    }
+  ],
+  "pillars": [
+    {
+      "id": "price_volatility_open_gap",
+      "name_ko": "가격 변동성 / 장초반 시가 대비 이격도",
+      "candidate_score": 30,
+      "required_data": [
+        "today_open",
+        "current_price",
+        "yesterday_high",
+        "yesterday_low",
+        "1m_or_5m_bars"
+      ]
+    },
+    {
+      "id": "volume_price_flow_correlation",
+      "name_ko": "수급 상관관계 / 거래량과 가격 변동 상관",
+      "candidate_score": 30,
+      "required_data": [
+        "intraday_volume",
+        "recent_bar_average_volume",
+        "price_return_series",
+        "volume_change_series"
+      ]
+    },
+    {
+      "id": "ninety_day_pattern",
+      "name_ko": "90일 시계열 패턴",
+      "candidate_score": 25,
+      "required_data": [
+        "90d_daily_prices",
+        "90d_intraday_bars",
+        "opening_pattern_features"
+      ]
+    },
+    {
+      "id": "risk_adjustment",
+      "name_ko": "리스크 보정",
+      "candidate_score": 15,
+      "required_data": [
+        "data_quality_flags",
+        "vi_risk",
+        "volatility_overheat",
+        "liquidity_flags"
+      ]
+    }
+  ],
+  "candidate_thresholds": {
+    "buy_candidate": 70,
+    "watch_min": 55,
+    "note": "백테스트 전 후보값이며 사용자 승인 없이 코드 임계값으로 확정하지 않는다."
+  },
+  "fujimoto_shigeru": {
+    "strategy_id": "fujimoto_shigeru_v1_candidate",
+    "status": "research_note_ready_not_implemented",
+    "note": "공개자료 기반 1차 리서치 완료. 펀더멘털 사전 필터, RSI 30/70 후보, 1분/5분 차트, 거래량/거래대금, 1:2:6 분할 진입 후보. 원문 자료 검증 전 자동매매 규칙으로 확정하지 않음.",
+    "reference": "docs/strategies/fujimoto_shigeru_research_note.md"
+  },
+  "next_steps": [
+    "Kiwoom 분봉/장초반 데이터 수집 가능성 검증",
+    "10분/30분 오프닝 레인지 백테스트 설계",
+    "가격-거래량 상관 점수화 구현",
+    "90일 패턴 매칭 최소 구현",
+    "후지모토 시게루 매매법 자료 확보"
+  ],
+  "kiwoom_intraday_validation": {
+    "status": "structure_verified_timeframe_needs_market_hours_validation",
+    "script": "scripts/smoke_test_kiwoom_intraday_api.py",
+    "verified_candidates": [
+      {
+        "api_id": "ka10005",
+        "path": "/api/dostk/mrkcond",
+        "list_key": "stk_ddwkmm",
+        "fields": [
+          "open_pric",
+          "high_pric",
+          "low_pric",
+          "close_pric",
+          "trde_qty"
+        ]
+      },
+      {
+        "api_id": "ka10006",
+        "path": "/api/dostk/mrkcond",
+        "fields": [
+          "open_pric",
+          "high_pric",
+          "low_pric",
+          "close_pric",
+          "trde_qty"
+        ]
+      },
+      {
+        "api_id": "ka10007",
+        "path": "/api/dostk/mrkcond",
+        "fields": [
+          "open_pric",
+          "high_pric",
+          "low_pric",
+          "trde_qty"
+        ]
+      }
+    ]
+  },
+  "implementation_files": [
+    "core/opening_strategy.py",
+    "scripts/run_opening_strategy_research.py",
+    "scripts/backtest_opening_strategy.py",
+    "docs/strategies/opening_range_backtest_design.md",
+    "docs/strategies/research_ai_score_breakdown_v1.md",
+    "workflows/n8n/opening_strategy_workflow.md",
+    "workflows/n8n/opening_strategy_workflow.template.json"
+  ]
+}

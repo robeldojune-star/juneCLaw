@@ -1,0 +1,46 @@
+{
+  "name": "Opening Strategy Research - template",
+  "version": "draft-1",
+  "strategy_id": "opening_multi_factor_v1",
+  "description": "n8n 설계 템플릿. 실제 n8n import 전에는 서버 경로/credential/알림 채널을 환경에 맞게 조정한다.",
+  "nodes": [
+    {
+      "name": "Cron 09:10 KST",
+      "type": "cron",
+      "purpose": "장초반 10분 공격형 점수 계산 트리거",
+      "schedule": "10 9 * * 1-5"
+    },
+    {
+      "name": "Smoke Test Kiwoom Intraday",
+      "type": "executeCommand",
+      "command": "cd /home/june/trading && python3 scripts/smoke_test_kiwoom_intraday_api.py 005930",
+      "expects_json": true
+    },
+    {
+      "name": "IF Kiwoom OK",
+      "type": "if",
+      "condition": "json.ok === true"
+    },
+    {
+      "name": "Run Opening Strategy Research",
+      "type": "executeCommand",
+      "command": "cd /home/june/trading && python3 scripts/run_opening_strategy_research.py --stock-code 005930",
+      "expects_json": true
+    },
+    {
+      "name": "IF BUY Candidate",
+      "type": "if",
+      "condition": "json.score >= 70 && !json.blocking_conditions.includes('pattern_model_not_ready')"
+    },
+    {
+      "name": "Notify Summary",
+      "type": "telegram_or_webhook",
+      "message_template": "[opening_multi_factor_v1] {{stock_code}} {{signal_type}} score={{score}} blocks={{blocking_conditions}}"
+    }
+  ],
+  "safety": [
+    "이 workflow는 주문을 실행하지 않는다.",
+    "pattern_model_not_ready가 있으면 자동 주문 후보로 보내지 않는다.",
+    "초기 운영은 알림 전용이다."
+  ]
+}
