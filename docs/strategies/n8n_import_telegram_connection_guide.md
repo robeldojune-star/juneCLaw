@@ -1,7 +1,8 @@
 # n8n import 및 Telegram 연결 운영 가이드 v1
 
-상태: 로컬 n8n 실행 확인 / API import는 `N8N_API_KEY` 필요  
-대상 workflow: `workflows/n8n/daily_trading_workflow_v1.import.json`
+상태: 로컬 n8n 실행 확인 / 현재 우선순위 낮음 / API import는 `N8N_API_KEY` 필요  
+대상 workflow: `workflows/n8n/daily_trading_workflow_v1.import.json`  
+참고: 현재 1차 운영 경로는 Hermes cron + trading-runner이며, n8n은 비활성 백업/향후 승인 UI 후보로 둔다.
 
 ---
 

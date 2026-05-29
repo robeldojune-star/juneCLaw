@@ -1,8 +1,8 @@
-# n8n 장초반 전략 워크플로우 초안
+# 장초반 전략 워크플로우 초안
 
 전략: `opening_multi_factor_v1`  
-상태: 초안 / n8n import JSON 작성 전 설계 문서  
-원칙: n8n은 오케스트레이션만 담당하고, 계산은 Python/core가 담당한다.
+상태: 과거 n8n 초안 / 현재 기준은 `docs/strategies/current_trading_execution_plan.md`를 우선한다.  
+원칙: 1차 운영 경로는 Hermes cron + trading-runner이며, n8n은 비활성 백업/승인 UI 후보로만 둔다. 계산은 Python/core가 담당한다.
 
 ---
 
@@ -63,7 +63,7 @@ python3 scripts/run_opening_strategy_research.py --stock-code 005930
 
 차단조건:
 - pattern_model_not_ready
-- ka10005 timeframe needs market-hours validation
+- snapshot_1m accumulation/backtest required
 ```
 
 ---
@@ -73,7 +73,7 @@ python3 scripts/run_opening_strategy_research.py --stock-code 005930
 ```text
 - 이 workflow는 주문을 내지 않는다.
 - order_candidate 생성은 별도 Leader AI workflow에서만 수행한다.
-- 90일 패턴/분봉 검증이 끝나기 전에는 BUY라도 알림 전용이다.
+- 90일 패턴/snapshot_1m 백테스트가 끝나기 전에는 BUY라도 알림 전용이다.
 - 실제 주문 전에는 모의투자 승인형 workflow로 분리한다.
 ```
 
@@ -82,9 +82,9 @@ python3 scripts/run_opening_strategy_research.py --stock-code 005930
 ## 6. 다음 단계
 
 ```text
-1. n8n 서버 설치/접속 방식 확정
-2. Execute Command 권한/작업 디렉터리 확인
-3. JSON 파싱 노드 구성
-4. Telegram 또는 Hermes webhook 알림 연결
+1. Hermes cron + trading-runner 장중 수집 유지
+2. inspect_snapshot_1m_status.py로 snapshot_1m 무결성 검증
+3. opening_10m/30m stage가 snapshot_1m만 사용하는지 확인
+4. 데이터 부족/백테스트 전에는 BUY 후보도 알림/paper 전용 유지
 5. KOSPI TOP50 반복 실행으로 확장
 ```

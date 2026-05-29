@@ -1,7 +1,8 @@
 # n8n Docker 설정 운영 노트 v1
 
-상태: 설정 완료  
-대상: `/home/june/n8n/docker-compose.yml` + `/home/june/trading` stage runner
+상태: 설정 완료 / 현재는 비활성 백업 경로  
+대상: `/home/june/n8n/docker-compose.yml` + `/home/june/trading` stage runner  
+참고: 현재 장중 수집의 1차 운영 경로는 n8n active workflow가 아니라 Hermes cron + trading-runner 직접 호출이다.
 
 ---
 

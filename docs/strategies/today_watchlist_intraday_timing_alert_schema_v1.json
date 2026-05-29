@@ -1,0 +1,298 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://robeldojune-star.github.io/juneCLaw/schemas/today_watchlist_intraday_timing_alert_v1.json",
+  "title": "Today Watchlist and Intraday Timing Alert Schema v1",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/today_watchlist_envelope" },
+    { "$ref": "#/$defs/intraday_timing_alert_envelope" },
+    { "$ref": "#/$defs/daily_strategy_change_review_envelope" }
+  ],
+  "$defs": {
+    "workflow_status": {
+      "type": "string",
+      "enum": ["completed", "blocked", "failed", "error"]
+    },
+    "blocking_conditions": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "alerts": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "next_actions": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "risk_controls": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["real_order_allowed", "paper_order_allowed"],
+      "properties": {
+        "max_position_krw": { "type": ["number", "null"], "minimum": 0 },
+        "suggested_budget_krw": { "type": ["number", "null"], "minimum": 0 },
+        "stop_loss_pct": { "type": ["number", "null"] },
+        "take_profit_pct_1": { "type": ["number", "null"] },
+        "take_profit_pct_2": { "type": ["number", "null"] },
+        "suggested_mode": {
+          "type": ["string", "null"],
+          "enum": ["alert_only", "paper_ready", "real_ready", null]
+        },
+        "real_order_allowed": { "type": "boolean", "const": false },
+        "paper_order_allowed": { "type": "boolean" }
+      }
+    },
+    "entry_scenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scenario_id", "label", "time_window", "required_conditions", "invalidation_conditions"],
+      "properties": {
+        "scenario_id": { "type": "string", "minLength": 1 },
+        "label": { "type": "string", "minLength": 1 },
+        "time_window": { "type": "string", "minLength": 1 },
+        "required_conditions": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "invalidation_conditions": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "watchlist_item": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "stock_code",
+        "watch_priority",
+        "candidate_score",
+        "entry_scenarios",
+        "risk_controls",
+        "blocking_conditions"
+      ],
+      "properties": {
+        "stock_code": { "type": "string", "pattern": "^[0-9]{6}$" },
+        "stock_name": { "type": ["string", "null"] },
+        "sector": { "type": ["string", "null"] },
+        "watch_priority": { "type": "integer", "minimum": 1 },
+        "candidate_score": { "type": "number" },
+        "signal_type": { "type": ["string", "null"], "enum": ["BUY", "WATCH", "HOLD", "SELL", "NO_TRADE", null] },
+        "strategy": { "type": ["string", "null"] },
+        "morning_reason": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "score_details": { "type": "object", "additionalProperties": true },
+        "entry_scenarios": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/entry_scenario" },
+          "minItems": 1
+        },
+        "risk_controls": { "$ref": "#/$defs/risk_controls" },
+        "blocking_conditions": { "$ref": "#/$defs/blocking_conditions" }
+      }
+    },
+    "today_watchlist_envelope": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "ok",
+        "workflow",
+        "stage",
+        "status",
+        "generated_at",
+        "trading_date",
+        "summary",
+        "watchlist",
+        "blocking_conditions",
+        "alerts",
+        "next_actions"
+      ],
+      "properties": {
+        "ok": { "type": "boolean" },
+        "workflow": { "type": "string", "const": "daily_trading_workflow_v1" },
+        "stage": { "type": "string", "enum": ["today_watchlist", "candidate_compression_layer"] },
+        "status": { "$ref": "#/$defs/workflow_status" },
+        "generated_at": { "type": "string", "minLength": 1 },
+        "trading_date": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+        "summary": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["candidate_count", "order_execution_enabled"],
+          "properties": {
+            "candidate_count": { "type": "integer", "minimum": 0 },
+            "source_stages": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "order_execution_enabled": { "type": "boolean", "const": false },
+            "paper_candidate_enabled": { "type": "boolean" }
+          }
+        },
+        "watchlist": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/watchlist_item" }
+        },
+        "blocking_conditions": { "$ref": "#/$defs/blocking_conditions" },
+        "alerts": { "$ref": "#/$defs/alerts" },
+        "next_actions": { "$ref": "#/$defs/next_actions" }
+      }
+    },
+    "snapshot_context": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["timestamp", "current_price", "snapshot_lag_minutes"],
+      "properties": {
+        "timestamp": { "type": "string", "minLength": 1 },
+        "current_price": { "type": "number", "exclusiveMinimum": 0 },
+        "open": { "type": ["number", "null"] },
+        "high": { "type": ["number", "null"] },
+        "low": { "type": ["number", "null"] },
+        "close": { "type": ["number", "null"] },
+        "volume": { "type": ["number", "null"], "minimum": 0 },
+        "snapshot_lag_minutes": { "type": "number", "minimum": 0 }
+      }
+    },
+    "timing_event": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "event_id",
+        "stock_code",
+        "scenario_id",
+        "event_type",
+        "signal_type",
+        "confidence_score",
+        "current_snapshot",
+        "risk_controls",
+        "blocking_conditions",
+        "message"
+      ],
+      "properties": {
+        "event_id": { "type": "string", "minLength": 1 },
+        "stock_code": { "type": "string", "pattern": "^[0-9]{6}$" },
+        "stock_name": { "type": ["string", "null"] },
+        "scenario_id": { "type": "string", "minLength": 1 },
+        "window_minutes": { "type": "integer", "enum": [10, 30] },
+        "event_type": {
+          "type": "string",
+          "enum": ["WATCH", "ENTRY_TIMING_CANDIDATE", "PAPER_READY", "REAL_READY", "BLOCKED"]
+        },
+        "signal_type": {
+          "type": "string",
+          "enum": ["BUY", "WATCH", "HOLD", "NO_TRADE"]
+        },
+        "confidence_score": { "type": "number" },
+        "current_snapshot": { "$ref": "#/$defs/snapshot_context" },
+        "opening_range": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "or_high": { "type": ["number", "null"] },
+            "or_low": { "type": ["number", "null"] },
+            "breakout_pct": { "type": ["number", "null"] }
+          }
+        },
+        "volume_context": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "volume_ratio": { "type": ["number", "null"] },
+            "volume_reference": { "type": ["string", "null"] }
+          }
+        },
+        "score_details": { "type": "object", "additionalProperties": true },
+        "risk_controls": { "$ref": "#/$defs/risk_controls" },
+        "blocking_conditions": { "$ref": "#/$defs/blocking_conditions" },
+        "message": { "type": "string", "minLength": 1 }
+      }
+    },
+    "intraday_timing_alert_envelope": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "ok",
+        "workflow",
+        "stage",
+        "status",
+        "generated_at",
+        "trading_date",
+        "summary",
+        "timing_events",
+        "blocking_conditions",
+        "alerts",
+        "next_actions"
+      ],
+      "properties": {
+        "ok": { "type": "boolean" },
+        "workflow": { "type": "string", "const": "daily_trading_workflow_v1" },
+        "stage": { "type": "string", "const": "intraday_timing_alert" },
+        "status": { "$ref": "#/$defs/workflow_status" },
+        "generated_at": { "type": "string", "minLength": 1 },
+        "trading_date": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+        "summary": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["window_minutes", "watchlist_count", "evaluated_count", "alert_count", "order_execution_enabled"],
+          "properties": {
+            "window_minutes": { "type": "integer", "enum": [10, 30] },
+            "watchlist_count": { "type": "integer", "minimum": 0 },
+            "evaluated_count": { "type": "integer", "minimum": 0 },
+            "alert_count": { "type": "integer", "minimum": 0 },
+            "paper_candidate_count": { "type": "integer", "minimum": 0 },
+            "order_execution_enabled": { "type": "boolean", "const": false }
+          }
+        },
+        "timing_events": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/timing_event" }
+        },
+        "blocking_conditions": { "$ref": "#/$defs/blocking_conditions" },
+        "alerts": { "$ref": "#/$defs/alerts" },
+        "next_actions": { "$ref": "#/$defs/next_actions" }
+      }
+    },
+    "strategy_change_candidate": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["candidate_id", "source", "strategy_id", "problem_observed", "proposed_change", "validation_required", "status", "approved_for_code_change"],
+      "properties": {
+        "candidate_id": { "type": "string", "minLength": 1 },
+        "source": { "type": "string", "minLength": 1 },
+        "strategy_id": { "type": "string", "minLength": 1 },
+        "problem_observed": { "type": "string", "minLength": 1 },
+        "evidence": { "type": "object", "additionalProperties": true },
+        "proposed_change": { "type": "object", "additionalProperties": true },
+        "validation_required": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "status": { "type": "string", "enum": ["candidate_only", "backtest_pending", "paper_pending", "approved", "rejected"] },
+        "approved_for_code_change": { "type": "boolean", "const": false }
+      }
+    },
+    "daily_strategy_change_review_envelope": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["ok", "workflow", "stage", "status", "generated_at", "trading_date", "strategy_change_candidates", "blocking_conditions", "alerts", "next_actions"],
+      "properties": {
+        "ok": { "type": "boolean" },
+        "workflow": { "type": "string", "const": "daily_trading_workflow_v1" },
+        "stage": { "type": "string", "const": "strategy_change_candidate_review" },
+        "status": { "$ref": "#/$defs/workflow_status" },
+        "generated_at": { "type": "string", "minLength": 1 },
+        "trading_date": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+        "strategy_change_candidates": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/strategy_change_candidate" }
+        },
+        "blocking_conditions": { "$ref": "#/$defs/blocking_conditions" },
+        "alerts": { "$ref": "#/$defs/alerts" },
+        "next_actions": { "$ref": "#/$defs/next_actions" }
+      }
+    }
+  }
+}

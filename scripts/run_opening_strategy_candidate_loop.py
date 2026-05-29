@@ -7,13 +7,17 @@ of falling back to fake/sample stocks.
 from __future__ import annotations
 
 import argparse
+from collections import Counter
+from datetime import datetime
 import json
 from pathlib import Path
 import subprocess
 import sys
 from typing import Any
+from zoneinfo import ZoneInfo
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+KST = ZoneInfo("Asia/Seoul")
 
 
 def run_json(args: list[str], timeout: int = 180) -> tuple[dict[str, Any] | None, str | None, int]:
@@ -78,7 +82,26 @@ def main() -> int:
         res["status"] = "completed" if res["ok"] else "blocked"
         results.append(res)
 
-    buy_candidates = [r for r in results if r.get("signal_type") == "BUY" and not r.get("blocking_conditions")]
+    def _fujimoto_gate_passed(item: dict[str, Any]) -> bool:
+        raw_details = item.get("score_details")
+        details = raw_details if isinstance(raw_details, dict) else {}
+
+        raw_thresholds = details.get("thresholds")
+        thresholds = raw_thresholds if isinstance(raw_thresholds, dict) else {}
+
+        raw_fujimoto = details.get("fujimoto_aux_filter")
+        fujimoto = raw_fujimoto if isinstance(raw_fujimoto, dict) else {}
+
+        min_required = float(thresholds.get("fujimoto_aux_min", 8))
+        aux_score = float(fujimoto.get("score", 0.0))
+        return aux_score >= min_required
+
+    buy_candidates = [
+        r for r in results
+        if r.get("signal_type") == "BUY"
+        and not r.get("blocking_conditions")
+        and _fujimoto_gate_passed(r)
+    ]
     watch_candidates = [r for r in results if r.get("signal_type") in {"BUY", "WATCH", "HOLD"}]
     if not results and candidates:
         blocks.append("opening_strategy_loop_no_results")
@@ -105,7 +128,7 @@ def main() -> int:
         "alerts": alerts,
         "next_actions": [
             "Leader AI 승인형 주문 workflow가 별도로 승인하기 전 주문 실행 금지",
-            "ka10005 time-frame 검증과 90일 분봉 백테스트 전 자동 주문 금지",
+            "snapshot_1m 누적/백테스트와 Leader 승인형 주문 workflow가 별도로 통과하기 전 주문 실행 금지",
         ],
     }
     print(json.dumps(out, ensure_ascii=False, indent=2))
