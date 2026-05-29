@@ -16,7 +16,7 @@
     },
     {
       "parameters": {
-        "content": "# daily_trading_workflow_v1\n\nHermes/Python 중심 트레이딩 운영 워크플로우입니다.\n- n8n은 스케줄/분기/알림만 담당\n- 계산은 /home/june/trading/scripts/run_daily_workflow_stage.py에서 수행\n- 모든 Execute Command는 표준 JSON을 stdout으로 반환\n- Telegram 노드는 실제 credential 연결 후 활성화하세요\n\n추가 guard stages: ka10005_timeframe_validation, collect_intraday_90d, backtest_opening_strategy_90d, simulate_approved_orders, strategy_review_if_needed."
+        "content": "# daily_trading_workflow_v1\n\nHermes/Python 중심 트레이딩 운영 워크플로우입니다.\n- n8n은 스케줄/분기/알림만 담당\n- 계산은 /home/june/trading/scripts/run_daily_workflow_stage.py에서 수행\n- 모든 Execute Command는 표준 JSON을 stdout으로 반환\n- Telegram 노드는 실제 credential 연결 후 활성화하세요\n\n추가 guard/snapshot stages: today_watchlist, intraday_timing_alert_10m/30m(alert-only), collect_current_session_snapshots(snapshot_1m), ka10005_timeframe_validation(legacy guard), collect_intraday_90d(disabled guard), backtest_opening_strategy_90d, simulate_approved_orders, strategy_review_if_needed."
       },
       "id": "note-overview",
       "name": "README",
@@ -521,28 +521,7 @@
     },
     {
       "parameters": {
-        "conditions": {
-          "string": [
-            {
-              "value1": "={{$json[\"stdout\"]}}",
-              "operation": "contains",
-              "value2": "\"blocking_conditions\":[]"
-            }
-          ]
-        }
-      },
-      "id": "if-no-blocks",
-      "name": "IF no blocking_conditions pattern",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [
-        740,
-        290
-      ]
-    },
-    {
-      "parameters": {
-        "content": "## Telegram 연결 (실연결 반영)\n\n현재 Docker runner가 notify=true로 실제 Telegram 전송을 수행합니다.\n\n추가 템플릿 체인:\n- Set telegram template payload\n- Telegram Message (template)\n\n메시지 필드: stage/status/summary/alerts/blocking_conditions/next_actions"
+        "content": "## Telegram 연결\n\n실제 알림은 trading-runner의 `notify=true`가 수행합니다.\n\n스팸 방지를 위해 장중 5분 반복 stage(`intraday_timing_alert_10m/30m`)는 `notify=false`입니다.\n중요 요약 알림만 Telegram으로 보냅니다: system/news/watchlist/opening/pnl 등."
       },
       "id": "note-telegram",
       "name": "Telegram 연결 안내",
@@ -716,27 +695,6 @@
         1460
       ],
       "notes": "Calls trading-runner Docker service for stage=aftermarket_multi_timeframe_collection"
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "http://trading-runner:8765/run-stage",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "{\"stage\": \"news_briefing_growth_analysis\", \"timeout\": 120, \"notify\": true}",
-        "options": {
-          "timeout": 700000
-        }
-      },
-      "id": "exec-telegram-connection-check",
-      "name": "Telegram connection check (runner notify smoke)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        980,
-        120
-      ],
-      "notes": "Docker-compatible Telegram notify smoke via trading-runner"
     },
     {
       "parameters": {
@@ -1012,6 +970,1074 @@
         2360
       ],
       "notes": "Calls trading-runner Docker service for stage=backtest_opening_strategy_90d"
+    },
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "hour": 9,
+              "minute": 5
+            },
+            {
+              "hour": 9,
+              "minute": 10
+            },
+            {
+              "hour": 9,
+              "minute": 15
+            },
+            {
+              "hour": 9,
+              "minute": 20
+            },
+            {
+              "hour": 9,
+              "minute": 25
+            },
+            {
+              "hour": 9,
+              "minute": 30
+            },
+            {
+              "hour": 9,
+              "minute": 35
+            },
+            {
+              "hour": 9,
+              "minute": 40
+            },
+            {
+              "hour": 9,
+              "minute": 45
+            },
+            {
+              "hour": 9,
+              "minute": 50
+            },
+            {
+              "hour": 9,
+              "minute": 55
+            },
+            {
+              "hour": 10,
+              "minute": 0
+            },
+            {
+              "hour": 10,
+              "minute": 5
+            },
+            {
+              "hour": 10,
+              "minute": 10
+            },
+            {
+              "hour": 10,
+              "minute": 15
+            },
+            {
+              "hour": 10,
+              "minute": 20
+            },
+            {
+              "hour": 10,
+              "minute": 25
+            },
+            {
+              "hour": 10,
+              "minute": 30
+            },
+            {
+              "hour": 10,
+              "minute": 35
+            },
+            {
+              "hour": 10,
+              "minute": 40
+            },
+            {
+              "hour": 10,
+              "minute": 45
+            },
+            {
+              "hour": 10,
+              "minute": 50
+            },
+            {
+              "hour": 10,
+              "minute": 55
+            },
+            {
+              "hour": 11,
+              "minute": 0
+            },
+            {
+              "hour": 11,
+              "minute": 5
+            },
+            {
+              "hour": 11,
+              "minute": 10
+            },
+            {
+              "hour": 11,
+              "minute": 15
+            },
+            {
+              "hour": 11,
+              "minute": 20
+            },
+            {
+              "hour": 11,
+              "minute": 25
+            },
+            {
+              "hour": 11,
+              "minute": 30
+            },
+            {
+              "hour": 11,
+              "minute": 35
+            },
+            {
+              "hour": 11,
+              "minute": 40
+            },
+            {
+              "hour": 11,
+              "minute": 45
+            },
+            {
+              "hour": 11,
+              "minute": 50
+            },
+            {
+              "hour": 11,
+              "minute": 55
+            },
+            {
+              "hour": 12,
+              "minute": 0
+            },
+            {
+              "hour": 12,
+              "minute": 5
+            },
+            {
+              "hour": 12,
+              "minute": 10
+            },
+            {
+              "hour": 12,
+              "minute": 15
+            },
+            {
+              "hour": 12,
+              "minute": 20
+            },
+            {
+              "hour": 12,
+              "minute": 25
+            },
+            {
+              "hour": 12,
+              "minute": 30
+            },
+            {
+              "hour": 12,
+              "minute": 35
+            },
+            {
+              "hour": 12,
+              "minute": 40
+            },
+            {
+              "hour": 12,
+              "minute": 45
+            },
+            {
+              "hour": 12,
+              "minute": 50
+            },
+            {
+              "hour": 12,
+              "minute": 55
+            },
+            {
+              "hour": 13,
+              "minute": 0
+            },
+            {
+              "hour": 13,
+              "minute": 5
+            },
+            {
+              "hour": 13,
+              "minute": 10
+            },
+            {
+              "hour": 13,
+              "minute": 15
+            },
+            {
+              "hour": 13,
+              "minute": 20
+            },
+            {
+              "hour": 13,
+              "minute": 25
+            },
+            {
+              "hour": 13,
+              "minute": 30
+            },
+            {
+              "hour": 13,
+              "minute": 35
+            },
+            {
+              "hour": 13,
+              "minute": 40
+            },
+            {
+              "hour": 13,
+              "minute": 45
+            },
+            {
+              "hour": 13,
+              "minute": 50
+            },
+            {
+              "hour": 13,
+              "minute": 55
+            },
+            {
+              "hour": 14,
+              "minute": 0
+            },
+            {
+              "hour": 14,
+              "minute": 5
+            },
+            {
+              "hour": 14,
+              "minute": 10
+            },
+            {
+              "hour": 14,
+              "minute": 15
+            },
+            {
+              "hour": 14,
+              "minute": 20
+            },
+            {
+              "hour": 14,
+              "minute": 25
+            },
+            {
+              "hour": 14,
+              "minute": 30
+            },
+            {
+              "hour": 14,
+              "minute": 35
+            },
+            {
+              "hour": 14,
+              "minute": 40
+            },
+            {
+              "hour": 14,
+              "minute": 45
+            },
+            {
+              "hour": 14,
+              "minute": 50
+            },
+            {
+              "hour": 14,
+              "minute": 55
+            },
+            {
+              "hour": 15,
+              "minute": 0
+            },
+            {
+              "hour": 15,
+              "minute": 5
+            },
+            {
+              "hour": 15,
+              "minute": 10
+            },
+            {
+              "hour": 15,
+              "minute": 15
+            },
+            {
+              "hour": 15,
+              "minute": 20
+            },
+            {
+              "hour": 15,
+              "minute": 25
+            },
+            {
+              "hour": 15,
+              "minute": 30
+            }
+          ]
+        }
+      },
+      "id": "cron-0905-snapshot-1m",
+      "name": "09:05~15:30 collect_current_session_snapshots",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        120,
+        1640
+      ],
+      "notes": "Every 5 minutes during KRX hours; accumulates Kiwoom ka10006 snapshot_1m rows."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://trading-runner:8765/run-stage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"stage\": \"collect_current_session_snapshots\", \"timeout\": 600, \"notify\": false}",
+        "options": {
+          "timeout": 700000
+        }
+      },
+      "id": "exec-snapshot-1m",
+      "name": "Run collect_current_session_snapshots",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        400,
+        1640
+      ],
+      "notes": "Calls trading-runner Docker service for stage=collect_current_session_snapshots (ka10006 snapshot_1m accumulation)."
+    },
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "hour": 8,
+              "minute": 50
+            }
+          ]
+        }
+      },
+      "id": "cron-0850-today-watchlist",
+      "name": "08:50 today_watchlist",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        -620,
+        920
+      ],
+      "notes": "Build TOP watchlist bridge before intraday timing alerts."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://trading-runner:8765/run-stage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"stage\": \"today_watchlist\", \"timeout\": 600, \"notify\": true}",
+        "options": {
+          "timeout": 700000
+        }
+      },
+      "id": "exec-today-watchlist",
+      "name": "Run today_watchlist",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -360,
+        920
+      ],
+      "notes": "Calls trading-runner Docker service for stage=today_watchlist"
+    },
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "hour": 9,
+              "minute": 10
+            },
+            {
+              "hour": 9,
+              "minute": 15
+            },
+            {
+              "hour": 9,
+              "minute": 20
+            },
+            {
+              "hour": 9,
+              "minute": 25
+            },
+            {
+              "hour": 9,
+              "minute": 30
+            },
+            {
+              "hour": 9,
+              "minute": 35
+            },
+            {
+              "hour": 9,
+              "minute": 40
+            },
+            {
+              "hour": 9,
+              "minute": 45
+            },
+            {
+              "hour": 9,
+              "minute": 50
+            },
+            {
+              "hour": 9,
+              "minute": 55
+            },
+            {
+              "hour": 10,
+              "minute": 0
+            },
+            {
+              "hour": 10,
+              "minute": 5
+            },
+            {
+              "hour": 10,
+              "minute": 10
+            },
+            {
+              "hour": 10,
+              "minute": 15
+            },
+            {
+              "hour": 10,
+              "minute": 20
+            },
+            {
+              "hour": 10,
+              "minute": 25
+            },
+            {
+              "hour": 10,
+              "minute": 30
+            },
+            {
+              "hour": 10,
+              "minute": 35
+            },
+            {
+              "hour": 10,
+              "minute": 40
+            },
+            {
+              "hour": 10,
+              "minute": 45
+            },
+            {
+              "hour": 10,
+              "minute": 50
+            },
+            {
+              "hour": 10,
+              "minute": 55
+            },
+            {
+              "hour": 11,
+              "minute": 0
+            },
+            {
+              "hour": 11,
+              "minute": 5
+            },
+            {
+              "hour": 11,
+              "minute": 10
+            },
+            {
+              "hour": 11,
+              "minute": 15
+            },
+            {
+              "hour": 11,
+              "minute": 20
+            },
+            {
+              "hour": 11,
+              "minute": 25
+            },
+            {
+              "hour": 11,
+              "minute": 30
+            },
+            {
+              "hour": 11,
+              "minute": 35
+            },
+            {
+              "hour": 11,
+              "minute": 40
+            },
+            {
+              "hour": 11,
+              "minute": 45
+            },
+            {
+              "hour": 11,
+              "minute": 50
+            },
+            {
+              "hour": 11,
+              "minute": 55
+            },
+            {
+              "hour": 12,
+              "minute": 0
+            },
+            {
+              "hour": 12,
+              "minute": 5
+            },
+            {
+              "hour": 12,
+              "minute": 10
+            },
+            {
+              "hour": 12,
+              "minute": 15
+            },
+            {
+              "hour": 12,
+              "minute": 20
+            },
+            {
+              "hour": 12,
+              "minute": 25
+            },
+            {
+              "hour": 12,
+              "minute": 30
+            },
+            {
+              "hour": 12,
+              "minute": 35
+            },
+            {
+              "hour": 12,
+              "minute": 40
+            },
+            {
+              "hour": 12,
+              "minute": 45
+            },
+            {
+              "hour": 12,
+              "minute": 50
+            },
+            {
+              "hour": 12,
+              "minute": 55
+            },
+            {
+              "hour": 13,
+              "minute": 0
+            },
+            {
+              "hour": 13,
+              "minute": 5
+            },
+            {
+              "hour": 13,
+              "minute": 10
+            },
+            {
+              "hour": 13,
+              "minute": 15
+            },
+            {
+              "hour": 13,
+              "minute": 20
+            },
+            {
+              "hour": 13,
+              "minute": 25
+            },
+            {
+              "hour": 13,
+              "minute": 30
+            },
+            {
+              "hour": 13,
+              "minute": 35
+            },
+            {
+              "hour": 13,
+              "minute": 40
+            },
+            {
+              "hour": 13,
+              "minute": 45
+            },
+            {
+              "hour": 13,
+              "minute": 50
+            },
+            {
+              "hour": 13,
+              "minute": 55
+            },
+            {
+              "hour": 14,
+              "minute": 0
+            },
+            {
+              "hour": 14,
+              "minute": 5
+            },
+            {
+              "hour": 14,
+              "minute": 10
+            },
+            {
+              "hour": 14,
+              "minute": 15
+            },
+            {
+              "hour": 14,
+              "minute": 20
+            },
+            {
+              "hour": 14,
+              "minute": 25
+            },
+            {
+              "hour": 14,
+              "minute": 30
+            },
+            {
+              "hour": 14,
+              "minute": 35
+            },
+            {
+              "hour": 14,
+              "minute": 40
+            },
+            {
+              "hour": 14,
+              "minute": 45
+            },
+            {
+              "hour": 14,
+              "minute": 50
+            },
+            {
+              "hour": 14,
+              "minute": 55
+            },
+            {
+              "hour": 15,
+              "minute": 0
+            },
+            {
+              "hour": 15,
+              "minute": 5
+            },
+            {
+              "hour": 15,
+              "minute": 10
+            },
+            {
+              "hour": 15,
+              "minute": 15
+            },
+            {
+              "hour": 15,
+              "minute": 20
+            },
+            {
+              "hour": 15,
+              "minute": 25
+            },
+            {
+              "hour": 15,
+              "minute": 30
+            }
+          ]
+        }
+      },
+      "id": "cron-0910-intraday-timing-alert-10m",
+      "name": "09:10~15:30 intraday_timing_alert_10m",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        -620,
+        2540
+      ],
+      "notes": "Every 5 minutes after OR10 is available; alert-only timing check."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://trading-runner:8765/run-stage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"stage\": \"intraday_timing_alert_10m\", \"timeout\": 600, \"notify\": false}",
+        "options": {
+          "timeout": 700000
+        }
+      },
+      "id": "exec-intraday-timing-alert-10m",
+      "name": "Run intraday_timing_alert_10m",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -360,
+        2540
+      ],
+      "notes": "Calls trading-runner Docker service for stage=intraday_timing_alert_10m; alert-only, no orders. | notify=false to prevent 5-min Telegram spam; stage returns JSON for n8n history."
+    },
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "hour": 9,
+              "minute": 30
+            },
+            {
+              "hour": 9,
+              "minute": 35
+            },
+            {
+              "hour": 9,
+              "minute": 40
+            },
+            {
+              "hour": 9,
+              "minute": 45
+            },
+            {
+              "hour": 9,
+              "minute": 50
+            },
+            {
+              "hour": 9,
+              "minute": 55
+            },
+            {
+              "hour": 10,
+              "minute": 0
+            },
+            {
+              "hour": 10,
+              "minute": 5
+            },
+            {
+              "hour": 10,
+              "minute": 10
+            },
+            {
+              "hour": 10,
+              "minute": 15
+            },
+            {
+              "hour": 10,
+              "minute": 20
+            },
+            {
+              "hour": 10,
+              "minute": 25
+            },
+            {
+              "hour": 10,
+              "minute": 30
+            },
+            {
+              "hour": 10,
+              "minute": 35
+            },
+            {
+              "hour": 10,
+              "minute": 40
+            },
+            {
+              "hour": 10,
+              "minute": 45
+            },
+            {
+              "hour": 10,
+              "minute": 50
+            },
+            {
+              "hour": 10,
+              "minute": 55
+            },
+            {
+              "hour": 11,
+              "minute": 0
+            },
+            {
+              "hour": 11,
+              "minute": 5
+            },
+            {
+              "hour": 11,
+              "minute": 10
+            },
+            {
+              "hour": 11,
+              "minute": 15
+            },
+            {
+              "hour": 11,
+              "minute": 20
+            },
+            {
+              "hour": 11,
+              "minute": 25
+            },
+            {
+              "hour": 11,
+              "minute": 30
+            },
+            {
+              "hour": 11,
+              "minute": 35
+            },
+            {
+              "hour": 11,
+              "minute": 40
+            },
+            {
+              "hour": 11,
+              "minute": 45
+            },
+            {
+              "hour": 11,
+              "minute": 50
+            },
+            {
+              "hour": 11,
+              "minute": 55
+            },
+            {
+              "hour": 12,
+              "minute": 0
+            },
+            {
+              "hour": 12,
+              "minute": 5
+            },
+            {
+              "hour": 12,
+              "minute": 10
+            },
+            {
+              "hour": 12,
+              "minute": 15
+            },
+            {
+              "hour": 12,
+              "minute": 20
+            },
+            {
+              "hour": 12,
+              "minute": 25
+            },
+            {
+              "hour": 12,
+              "minute": 30
+            },
+            {
+              "hour": 12,
+              "minute": 35
+            },
+            {
+              "hour": 12,
+              "minute": 40
+            },
+            {
+              "hour": 12,
+              "minute": 45
+            },
+            {
+              "hour": 12,
+              "minute": 50
+            },
+            {
+              "hour": 12,
+              "minute": 55
+            },
+            {
+              "hour": 13,
+              "minute": 0
+            },
+            {
+              "hour": 13,
+              "minute": 5
+            },
+            {
+              "hour": 13,
+              "minute": 10
+            },
+            {
+              "hour": 13,
+              "minute": 15
+            },
+            {
+              "hour": 13,
+              "minute": 20
+            },
+            {
+              "hour": 13,
+              "minute": 25
+            },
+            {
+              "hour": 13,
+              "minute": 30
+            },
+            {
+              "hour": 13,
+              "minute": 35
+            },
+            {
+              "hour": 13,
+              "minute": 40
+            },
+            {
+              "hour": 13,
+              "minute": 45
+            },
+            {
+              "hour": 13,
+              "minute": 50
+            },
+            {
+              "hour": 13,
+              "minute": 55
+            },
+            {
+              "hour": 14,
+              "minute": 0
+            },
+            {
+              "hour": 14,
+              "minute": 5
+            },
+            {
+              "hour": 14,
+              "minute": 10
+            },
+            {
+              "hour": 14,
+              "minute": 15
+            },
+            {
+              "hour": 14,
+              "minute": 20
+            },
+            {
+              "hour": 14,
+              "minute": 25
+            },
+            {
+              "hour": 14,
+              "minute": 30
+            },
+            {
+              "hour": 14,
+              "minute": 35
+            },
+            {
+              "hour": 14,
+              "minute": 40
+            },
+            {
+              "hour": 14,
+              "minute": 45
+            },
+            {
+              "hour": 14,
+              "minute": 50
+            },
+            {
+              "hour": 14,
+              "minute": 55
+            },
+            {
+              "hour": 15,
+              "minute": 0
+            },
+            {
+              "hour": 15,
+              "minute": 5
+            },
+            {
+              "hour": 15,
+              "minute": 10
+            },
+            {
+              "hour": 15,
+              "minute": 15
+            },
+            {
+              "hour": 15,
+              "minute": 20
+            },
+            {
+              "hour": 15,
+              "minute": 25
+            },
+            {
+              "hour": 15,
+              "minute": 30
+            }
+          ]
+        }
+      },
+      "id": "cron-0930-intraday-timing-alert-30m",
+      "name": "09:30~15:30 intraday_timing_alert_30m",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        -620,
+        2720
+      ],
+      "notes": "Every 5 minutes after OR30 is available; alert-only timing check."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://trading-runner:8765/run-stage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"stage\": \"intraday_timing_alert_30m\", \"timeout\": 600, \"notify\": false}",
+        "options": {
+          "timeout": 700000
+        }
+      },
+      "id": "exec-intraday-timing-alert-30m",
+      "name": "Run intraday_timing_alert_30m",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -360,
+        2720
+      ],
+      "notes": "Calls trading-runner Docker service for stage=intraday_timing_alert_30m; alert-only, no orders. | notify=false to prevent 5-min Telegram spam; stage returns JSON for n8n history."
     }
   ],
   "connections": {
@@ -1256,6 +2282,50 @@
           }
         ]
       ]
+    },
+    "09:05~15:30 collect_current_session_snapshots": {
+      "main": [
+        [
+          {
+            "node": "Run collect_current_session_snapshots",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "08:50 today_watchlist": {
+      "main": [
+        [
+          {
+            "node": "Run today_watchlist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "09:10~15:30 intraday_timing_alert_10m": {
+      "main": [
+        [
+          {
+            "node": "Run intraday_timing_alert_10m",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "09:30~15:30 intraday_timing_alert_30m": {
+      "main": [
+        [
+          {
+            "node": "Run intraday_timing_alert_30m",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
@@ -1266,7 +2336,7 @@
   "pinData": {},
   "meta": {
     "templateCredsSetupCompleted": false,
-    "description": "Draft n8n import workflow for /home/june/trading daily multi-AI operations. Includes monitoring/selloff stages. Telegram credential must be wired after import."
+    "description": "Draft n8n import workflow for /home/june/trading daily multi-AI operations. Includes monitoring/selloff stages. Telegram credential must be wired after import. Includes today_watchlist and alert-only intraday_timing_alert_10m/30m HTTP stages."
   },
   "active": false,
   "versionId": "daily_trading_workflow_v1-draft",

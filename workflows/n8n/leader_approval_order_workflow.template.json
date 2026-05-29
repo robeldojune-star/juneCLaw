@@ -87,7 +87,7 @@
         "url": "http://trading-runner:8765/run-stage",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\"stage\": \"opening_30m_standard_layer\", \"timeout\": 300, \"notify\": true}",
+        "jsonBody": "{\"stage\": \"simulate_approved_orders\", \"timeout\": 300, \"notify\": true}",
         "options": {
           "timeout": 700000
         }
@@ -100,11 +100,11 @@
         300,
         40
       ],
-      "notes": "Placeholder chain marker; use scripts/simulate_approved_orders.py from manual/runner until dedicated endpoint is added"
+      "notes": "Direct paper-order stage call. Creates SIMULATED orders only; no Kiwoom live order API."
     },
     {
       "parameters": {
-        "content": "모의 주문 실행은 `scripts/simulate_approved_orders.py`를 사용하세요.\n\n현재 템플릿에서는 Docker runner를 통한 stage 호출만 수행합니다.\n실제 모의 주문은 별도 runner endpoint 확장 또는 수동 트리거 스크립트로 연결하세요."
+        "content": "모의 주문 노드는 `simulate_approved_orders` stage를 직접 호출합니다.\n\n- status=SIMULATED만 기록\n- Kiwoom 실주문 API 호출 없음\n- 후보/리스크/예산 통과 시에만 모의 주문 생성"
       },
       "id": "note-paper-order-guide",
       "name": "Paper order guide",
