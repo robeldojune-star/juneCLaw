@@ -16,7 +16,7 @@
     },
     {
       "parameters": {
-        "content": "# daily_trading_workflow_v1\n\nHermes/Python 중심 트레이딩 운영 워크플로우입니다.\n- n8n은 스케줄/분기/알림만 담당\n- 계산은 /home/june/trading/scripts/run_daily_workflow_stage.py에서 수행\n- 모든 Execute Command는 표준 JSON을 stdout으로 반환\n- Telegram 노드는 실제 credential 연결 후 활성화하세요"
+        "content": "# daily_trading_workflow_v1\n\nHermes/Python 중심 트레이딩 운영 워크플로우입니다.\n- n8n은 스케줄/분기/알림만 담당\n- 계산은 /home/june/trading/scripts/run_daily_workflow_stage.py에서 수행\n- 모든 Execute Command는 표준 JSON을 stdout으로 반환\n- Telegram 노드는 실제 credential 연결 후 활성화하세요\n\n추가 guard stages: ka10005_timeframe_validation, collect_intraday_90d, backtest_opening_strategy_90d, simulate_approved_orders, strategy_review_if_needed."
       },
       "id": "note-overview",
       "name": "README",
@@ -807,6 +807,211 @@
         420
       ],
       "notes": "Template path marker node. Real Telegram send is handled by trading-runner notify=true."
+    },
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "hour": 9,
+              "minute": 20
+            }
+          ]
+        }
+      },
+      "id": "cron-0920-ka10005-timeframe-validation",
+      "name": "09:20 ka10005_timeframe_validation",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        -620,
+        1640
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://trading-runner:8765/run-stage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"stage\": \"ka10005_timeframe_validation\", \"timeout\": 600, \"notify\": true}",
+        "options": {
+          "timeout": 700000
+        }
+      },
+      "id": "exec-ka10005-timeframe-validation",
+      "name": "Run ka10005_timeframe_validation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -360,
+        1640
+      ],
+      "notes": "Calls trading-runner Docker service for stage=ka10005_timeframe_validation"
+    },
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "hour": 9,
+              "minute": 35
+            }
+          ]
+        }
+      },
+      "id": "cron-0935-simulate-approved-orders",
+      "name": "09:35 simulate_approved_orders",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        -620,
+        1820
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://trading-runner:8765/run-stage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"stage\": \"simulate_approved_orders\", \"timeout\": 600, \"notify\": true}",
+        "options": {
+          "timeout": 700000
+        }
+      },
+      "id": "exec-simulate-approved-orders",
+      "name": "Run simulate_approved_orders",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -360,
+        1820
+      ],
+      "notes": "Calls trading-runner Docker service for stage=simulate_approved_orders"
+    },
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "hour": 15,
+              "minute": 50
+            }
+          ]
+        }
+      },
+      "id": "cron-1550-collect-intraday-90d",
+      "name": "15:50 collect_intraday_90d",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        -620,
+        2000
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://trading-runner:8765/run-stage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"stage\": \"collect_intraday_90d\", \"timeout\": 600, \"notify\": true}",
+        "options": {
+          "timeout": 700000
+        }
+      },
+      "id": "exec-collect-intraday-90d",
+      "name": "Run collect_intraday_90d",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -360,
+        2000
+      ],
+      "notes": "Calls trading-runner Docker service for stage=collect_intraday_90d"
+    },
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "hour": 20,
+              "minute": 0
+            }
+          ]
+        }
+      },
+      "id": "cron-2000-strategy-review-if-needed",
+      "name": "20:00 strategy_review_if_needed",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        -620,
+        2180
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://trading-runner:8765/run-stage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"stage\": \"strategy_review_if_needed\", \"timeout\": 600, \"notify\": true}",
+        "options": {
+          "timeout": 700000
+        }
+      },
+      "id": "exec-strategy-review-if-needed",
+      "name": "Run strategy_review_if_needed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -360,
+        2180
+      ],
+      "notes": "Calls trading-runner Docker service for stage=strategy_review_if_needed"
+    },
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "hour": 20,
+              "minute": 30
+            }
+          ]
+        }
+      },
+      "id": "cron-2030-backtest-opening-strategy-90d",
+      "name": "20:30 backtest_opening_strategy_90d",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        -620,
+        2360
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://trading-runner:8765/run-stage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"stage\": \"backtest_opening_strategy_90d\", \"timeout\": 600, \"notify\": true}",
+        "options": {
+          "timeout": 700000
+        }
+      },
+      "id": "exec-backtest-opening-strategy-90d",
+      "name": "Run backtest_opening_strategy_90d",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -360,
+        2360
+      ],
+      "notes": "Calls trading-runner Docker service for stage=backtest_opening_strategy_90d"
     }
   ],
   "connections": {
@@ -991,6 +1196,61 @@
         [
           {
             "node": "Telegram Message (template)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "09:20 ka10005_timeframe_validation": {
+      "main": [
+        [
+          {
+            "node": "Run ka10005_timeframe_validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "09:35 simulate_approved_orders": {
+      "main": [
+        [
+          {
+            "node": "Run simulate_approved_orders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "15:50 collect_intraday_90d": {
+      "main": [
+        [
+          {
+            "node": "Run collect_intraday_90d",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "20:00 strategy_review_if_needed": {
+      "main": [
+        [
+          {
+            "node": "Run strategy_review_if_needed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "20:30 backtest_opening_strategy_90d": {
+      "main": [
+        [
+          {
+            "node": "Run backtest_opening_strategy_90d",
             "type": "main",
             "index": 0
           }

@@ -27,14 +27,19 @@ from core.market_data_service import MarketDataService  # noqa: E402
 
 
 def _extract_time(raw: dict) -> str | None:
-    for key in ("time", "tm", "dt", "date"):
+    """Extract an intraday HHMMSS value when the response exposes one.
+
+    Important: ka10005 often returns ``date`` as a plain YYYYMMDD daily bar.
+    Treating that 8-digit date as a time made bogus keys like
+    ``20260529260529`` and incorrectly implied minute data. Only explicit time
+    fields, or combined datetime values in non-date keys, should become HHMMSS.
+    """
+    for key in ("time", "tm", "trde_tm", "cntr_tm", "stck_cntg_hour", "dt"):
         val = str(raw.get(key) or "").strip()
         if not val:
             continue
         digits = re.sub(r"\D", "", val)
         if len(digits) >= 12:
-            return digits[-6:]
-        if len(digits) == 8:
             return digits[-6:]
         if len(digits) == 6:
             return digits
@@ -42,7 +47,7 @@ def _extract_time(raw: dict) -> str | None:
 
 
 def _bar_key(raw: dict) -> str:
-    d = str(raw.get("date") or "").strip()
+    d = str(raw.get("date") or raw.get("dt") or "").strip()
     t = _extract_time(raw) or "000000"
     digits = re.sub(r"\D", "", d)
     if len(digits) < 8:
@@ -110,10 +115,15 @@ def main() -> int:
     if ohlcv_bad > 0:
         blocks.append("ka10005_invalid_ohlcv_values")
 
-    # Minute-like density heuristic (for same-day bars)
-    minute_like = today_count >= 10
-    if market_hours and not minute_like:
+    explicit_time_count = sum(1 for r in rows if isinstance(r, dict) and _extract_time(r))
+    # Minute-like density heuristic (for same-day bars): require explicit time keys
+    # and enough same-day rows. Daily-only ka10005 responses must not be treated as 1m data.
+    minute_like = explicit_time_count >= args.min_bars and today_count >= min(10, args.min_bars)
+    if not minute_like:
         alerts.append("ka10005_minute_density_low")
+        alerts.append("ka10005_response_currently_looks_daily_not_intraday")
+        if market_hours or args.allow_offhours:
+            blocks.append("ka10005_timeframe_not_minute_like")
 
     out = {
         "ok": not blocks,
@@ -125,6 +135,7 @@ def main() -> int:
             "market_hours": market_hours,
             "rows": len(rows),
             "today_bar_count": today_count,
+            "explicit_time_bar_count": explicit_time_count,
             "unique_bar_keys": unique_keys,
             "duplicate_bar_count": duplicate_count,
             "ohlcv_bad_count": ohlcv_bad,

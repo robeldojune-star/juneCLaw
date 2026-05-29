@@ -9,6 +9,7 @@ import argparse
 from datetime import datetime, timedelta
 import json
 from pathlib import Path
+import re
 import sys
 from zoneinfo import ZoneInfo
 
@@ -18,6 +19,24 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from core.kiwoom_client import KiwoomAPIClient, clean_int  # noqa: E402
 from core.market_data_service import MarketDataService  # noqa: E402
 from core.supabase_rest import SupabaseRestClient, SupabaseRestError  # noqa: E402
+
+
+def _extract_date(raw: dict) -> str | None:
+    for key in ("date", "dt"):
+        digits = re.sub(r"\D", "", str(raw.get(key) or ""))
+        if len(digits) >= 8:
+            return digits[:8]
+    return None
+
+
+def _extract_time(raw: dict) -> str | None:
+    for key in ("time", "tm", "trde_tm", "cntr_tm", "stck_cntg_hour", "dt"):
+        digits = re.sub(r"\D", "", str(raw.get(key) or ""))
+        if len(digits) >= 12:
+            return digits[-6:]
+        if len(digits) == 6:
+            return digits
+    return None
 
 
 def main() -> int:
@@ -57,16 +76,20 @@ def main() -> int:
         except Exception as exc:  # noqa: BLE001
             alerts.append(f"{code}_intraday_fetch_failed:{type(exc).__name__}")
             continue
+        explicit_time_count = sum(1 for r in rows if isinstance(r, dict) and _extract_time(r))
+        if args.time_frame.endswith("min") and explicit_time_count < min(10, len(rows)):
+            alerts.append(f"{code}_ka10005_response_looks_daily_not_{args.time_frame}:explicit_time_rows={explicit_time_count}/{len(rows)}")
+            continue
         payload = []
         for r in rows:
             if not isinstance(r, dict):
                 continue
-            ds = str(r.get("date") or "").strip()
-            if len(ds) < 8:
+            day = _extract_date(r)
+            if not day:
                 continue
-            day = ds[:8]
-            # ka10005 does not always expose explicit HHMMSS; assume market-close bucket when missing.
-            tm = "153000"
+            tm = _extract_time(r)
+            if not tm:
+                continue
             timestamp = f"{day[:4]}-{day[4:6]}-{day[6:8]}T{tm[:2]}:{tm[2:4]}:{tm[4:6]}+09:00"
             # keep only ~90 trading days equivalent window
             try:
@@ -101,6 +124,8 @@ def main() -> int:
 
     if attempted == 0:
         blocks.append("no_intraday_rows_attempted")
+    if alerts and all("ka10005_response_looks_daily" in a for a in alerts):
+        blocks.append("ka10005_timeframe_not_validated_for_intraday_collection")
 
     out = {
         "ok": not blocks,

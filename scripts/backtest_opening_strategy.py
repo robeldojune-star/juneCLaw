@@ -79,6 +79,8 @@ def main() -> int:
     parser.add_argument("--stock-codes", nargs="+", default=["005930"])
     parser.add_argument("--days", type=int, default=130)
     parser.add_argument("--time-frame", default="1min")
+    parser.add_argument("--min-rows", type=int, default=300)
+    parser.add_argument("--min-trades", type=int, default=5)
     args = parser.parse_args()
 
     since = (datetime.now(timezone.utc) - timedelta(days=args.days)).isoformat(timespec="seconds")
@@ -118,10 +120,16 @@ def main() -> int:
 
     if not all_rows:
         blocks.append("need_90_trading_days_intraday_prices")
+    elif len(all_rows) < args.min_rows:
+        blocks.append("insufficient_intraday_rows_for_backtest")
 
     grouped = _group_by_stock(all_rows)
     v10 = {code: _simulate_variant(rows, 10) for code, rows in grouped.items()}
     v30 = {code: _simulate_variant(rows, 30) for code, rows in grouped.items()}
+
+    total_trades = sum(v.get("trades", 0) for v in v10.values()) + sum(v.get("trades", 0) for v in v30.values())
+    if all_rows and total_trades < args.min_trades:
+        blocks.append("insufficient_backtest_trade_count")
 
     def agg(variant: dict[str, dict[str, Any]]) -> dict[str, Any]:
         trades = sum(v.get("trades", 0) for v in variant.values())
@@ -153,6 +161,9 @@ def main() -> int:
             "days": args.days,
             "time_frame": args.time_frame,
             "rows_used": len(all_rows),
+            "min_rows_required": args.min_rows,
+            "total_variant_trades": total_trades,
+            "min_trades_required": args.min_trades,
         },
         "blocking_conditions": blocks,
         "alerts": alerts,
