@@ -16,7 +16,7 @@
     },
     {
       "parameters": {
-        "content": "# daily_trading_workflow_v1\n\nHermes/Python 중심 트레이딩 운영 워크플로우입니다.\n- n8n은 스케줄/분기/알림만 담당\n- 계산은 /home/june/trading/scripts/run_daily_workflow_stage.py에서 수행\n- 모든 Execute Command는 표준 JSON을 stdout으로 반환\n- Telegram 노드는 실제 credential 연결 후 활성화하세요\n\n추가 guard/snapshot stages: today_watchlist, intraday_timing_alert_10m/30m(alert-only), collect_current_session_snapshots(snapshot_1m), ka10005_timeframe_validation(legacy guard), collect_intraday_90d(disabled guard), backtest_opening_strategy_90d, simulate_approved_orders, strategy_review_if_needed."
+        "content": "# daily_trading_workflow_v1\n\nHermes/Python 중심 트레이딩 운영 워크플로우입니다.\n- n8n은 스케줄/분기/알림만 담당\n- 계산은 /home/june/trading/scripts/run_daily_workflow_stage.py에서 수행\n- 모든 Execute Command는 표준 JSON을 stdout으로 반환\n- Telegram 노드는 실제 credential 연결 후 활성화하세요\n\n추가 guard/snapshot stages: today_watchlist, intraday_timing_alert_10m/30m(alert-only), collect_current_session_snapshots(snapshot_1m), ka10005_timeframe_validation(legacy guard), collect_intraday_90d(disabled guard), backtest_opening_strategy_90d, simulate_approved_orders, strategy_review_if_needed.\n\n운영 정합성: 장중 `collect_current_session_snapshots` 반복 수집은 Hermes cron(`trading-snapshot-1m-collector-no-n8n`)이 1차 수행합니다. n8n의 동일 수집 노드는 중복 방지를 위해 disabled 상태로 유지합니다. n8n은 일일 오케스트레이션/알림/승인 UI 후보와 read-only timing alert만 담당합니다."
       },
       "id": "note-overview",
       "name": "README",
@@ -521,7 +521,7 @@
     },
     {
       "parameters": {
-        "content": "## Telegram 연결\n\n실제 알림은 trading-runner의 `notify=true`가 수행합니다.\n\n스팸 방지를 위해 장중 5분 반복 stage(`intraday_timing_alert_10m/30m`)는 `notify=false`입니다.\n중요 요약 알림만 Telegram으로 보냅니다: system/news/watchlist/opening/pnl 등."
+        "content": "## Telegram 연결\n\n실제 알림은 trading-runner의 `notify=true`가 수행합니다.\n\n스팸 방지를 위해 장중 5분 반복 stage(`intraday_timing_alert_10m/30m`)는 `notify=false`입니다.\n중요 요약 알림만 Telegram으로 보냅니다: system/news/watchlist/opening/pnl 등.\n\n장중 snapshot 수집은 Hermes cron이 담당합니다. n8n timing alert는 `snapshot_1m` read-only 평가만 수행하고 `notify=false`로 유지합니다."
       },
       "id": "note-telegram",
       "name": "Telegram 연결 안내",
@@ -1298,7 +1298,8 @@
         120,
         1640
       ],
-      "notes": "Every 5 minutes during KRX hours; accumulates Kiwoom ka10006 snapshot_1m rows."
+      "notes": "Every 5 minutes during KRX hours; accumulates Kiwoom ka10006 snapshot_1m rows.",
+      "disabled": true
     },
     {
       "parameters": {
@@ -1319,7 +1320,8 @@
         400,
         1640
       ],
-      "notes": "Calls trading-runner Docker service for stage=collect_current_session_snapshots (ka10006 snapshot_1m accumulation)."
+      "notes": "Calls trading-runner Docker service for stage=collect_current_session_snapshots (ka10006 snapshot_1m accumulation).",
+      "disabled": true
     },
     {
       "parameters": {

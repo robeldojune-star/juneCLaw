@@ -30,7 +30,11 @@ STAGE_META: dict[str, dict[str, str]] = {
     "stock_trading_daily_workflow": {"model_grade": "low_medium", "time": "08:00"},
     "premarket_account_risk_check": {"model_grade": "low", "time": "08:30"},
     "candidate_compression_layer": {"model_grade": "medium", "time": "08:45"},
+    "today_watchlist": {"model_grade": "low", "time": "08:50"},
     "morning_investment_layer": {"model_grade": "low", "time": "09:00"},
+    "collect_current_session_snapshots": {"model_grade": "none", "time": "09:05~15:30"},
+    "intraday_timing_alert_10m": {"model_grade": "low", "time": "09:10~15:30"},
+    "intraday_timing_alert_30m": {"model_grade": "low", "time": "09:30~15:30"},
     "opening_10m_aggressive_layer": {"model_grade": "low", "time": "09:10"},
     "opening_30m_standard_layer": {"model_grade": "low", "time": "09:30"},
     "post_opening_monitoring": {"model_grade": "low", "time": "10:00"},
@@ -119,7 +123,10 @@ def stage_news_briefing_growth_analysis() -> list[WorkflowStep]:
 
 
 def stage_stock_morning_signals() -> list[WorkflowStep]:
-    return [_run_command("generate_daily_signals", [sys.executable, "scripts/generate_daily_signals.py"], timeout=240)]
+    # trading-runner Docker image already contains psycopg; host environments may
+    # have uv, but Docker runner does not. Prefer the current Python executable
+    # so n8n/Hermes runner behavior is stable.
+    return [_run_command("generate_daily_signals", [sys.executable, "scripts/generate_daily_signals.py"], timeout=300)]
 
 
 def stage_stock_trading_daily_workflow() -> list[WorkflowStep]:
@@ -138,6 +145,10 @@ def stage_candidate_compression_layer() -> list[WorkflowStep]:
     return [_run_command("candidate_compression_layer", [sys.executable, "scripts/candidate_compression_layer.py"], timeout=120)]
 
 
+def stage_today_watchlist() -> list[WorkflowStep]:
+    return [_run_command("today_watchlist", [sys.executable, "scripts/build_today_watchlist.py"], timeout=180)]
+
+
 def stage_morning_investment_layer() -> list[WorkflowStep]:
     return [
         WorkflowStep(
@@ -149,9 +160,24 @@ def stage_morning_investment_layer() -> list[WorkflowStep]:
     ]
 
 
+def stage_collect_current_session_snapshots() -> list[WorkflowStep]:
+    return [_run_command("collect_current_session_snapshots", [sys.executable, "scripts/collect_current_session_snapshots.py", "--limit", "10"], timeout=240)]
+
+
+def stage_intraday_timing_alert(window: int) -> list[WorkflowStep]:
+    return [
+        _run_command(
+            f"intraday_timing_alert_{window}m",
+            [sys.executable, "scripts/run_intraday_timing_alerts.py", "--window", str(window), "--limit", "10"],
+            timeout=240,
+        )
+    ]
+
+
 def stage_opening_layer(window: int, stage_name: str) -> list[WorkflowStep]:
     mode_block = "pattern_model_not_ready_for_auto_order"
     steps = [
+        _run_command("collect_current_session_snapshots", [sys.executable, "scripts/collect_current_session_snapshots.py", "--limit", "10"], timeout=240),
         _run_command(
             stage_name,
             [sys.executable, "scripts/run_opening_strategy_candidate_loop.py", "--window", str(window), "--limit", "10"],
@@ -163,9 +189,9 @@ def stage_opening_layer(window: int, stage_name: str) -> list[WorkflowStep]:
             name=f"auto_order_guard_{window}m",
             ok=True,
             status="blocked",
-            summary="opening strategy evaluates compressed TOP candidates only; auto order disabled until 90d intraday backtest passes",
-            blocking_conditions=[mode_block, "ka10005_timeframe_needs_market_hours_validation"],
-            details={"window_minutes": window, "order_execution_enabled": False, "candidate_source": "candidate_compression_layer"},
+            summary="opening strategy evaluates compressed TOP candidates only; auto order disabled until accumulated snapshot_1m backtest passes",
+            blocking_conditions=[mode_block, "snapshot_1m_accumulation_and_backtest_required"],
+            details={"window_minutes": window, "order_execution_enabled": False, "candidate_source": "candidate_compression_layer", "bar_source": "kiwoom_ka10006_snapshot"},
         )
     )
     return steps
@@ -195,11 +221,20 @@ def stage_ka10005_timeframe_validation() -> list[WorkflowStep]:
 
 
 def stage_collect_intraday_90d() -> list[WorkflowStep]:
-    return [_run_command("collect_intraday_90d", [sys.executable, "scripts/collect_intraday_90d.py", "--stock-codes", "005930", "000660", "035420", "005380", "068270", "--time-frame", "1min"], timeout=300)]
+    return [
+        WorkflowStep(
+            name="collect_intraday_90d_guard",
+            ok=True,
+            status="blocked",
+            summary="ka10005 is not minute-like; historical 90d minute backfill is disabled until a verified Kiwoom minute-history API is identified",
+            blocking_conditions=["verified_minute_history_api_not_available"],
+            details={"disabled_source": "ka10005", "active_source": "ka10006 snapshot_1m accumulation"},
+        )
+    ]
 
 
 def stage_backtest_opening_strategy_90d() -> list[WorkflowStep]:
-    return [_run_command("backtest_opening_strategy_90d", [sys.executable, "scripts/backtest_opening_strategy.py", "--stock-codes", "005930", "000660", "035420", "005380", "068270", "--days", "130", "--time-frame", "1min"], timeout=300)]
+    return [_run_command("backtest_opening_strategy_90d", [sys.executable, "scripts/backtest_opening_strategy.py", "--stock-codes", "005930", "000660", "035420", "005380", "068270", "--days", "130", "--time-frame", "snapshot_1m"], timeout=300)]
 
 
 def stage_simulate_approved_orders() -> list[WorkflowStep]:
@@ -213,7 +248,11 @@ STAGE_HANDLERS = {
     "stock_trading_daily_workflow": stage_stock_trading_daily_workflow,
     "premarket_account_risk_check": stage_premarket_account_risk_check,
     "candidate_compression_layer": stage_candidate_compression_layer,
+    "today_watchlist": stage_today_watchlist,
     "morning_investment_layer": stage_morning_investment_layer,
+    "collect_current_session_snapshots": stage_collect_current_session_snapshots,
+    "intraday_timing_alert_10m": lambda: stage_intraday_timing_alert(10),
+    "intraday_timing_alert_30m": lambda: stage_intraday_timing_alert(30),
     "opening_10m_aggressive_layer": lambda: stage_opening_layer(10, "opening_10m_aggressive_layer"),
     "opening_30m_standard_layer": lambda: stage_opening_layer(30, "opening_30m_standard_layer"),
     "post_opening_monitoring": lambda: stage_monitoring("post_opening_monitoring"),
