@@ -268,29 +268,36 @@ docs/strategies/fujimoto_shigeru_research_note.md
 ### 6.3 등록 상태
 
 ```text
-strategy_id: fujimoto_shigeru_v1_candidate
-status: research_note_ready_not_implemented
-integration: opening_multi_factor_v1 auxiliary filter candidate
+strategy_id: fujimoto_shigeru_v1
+status: independent_strategy_candidate
+integration: standalone (independent from opening_multi_factor_v1)
 ```
 
-### 6.4 편입 방식 후보
-
-초기에는 독립 전략이 아니라 `opening_multi_factor_v1`의 보조 필터로 편입하는 방식을 우선 검토한다.
+### 6.4 전략 구조 (독립 전략으로서)
 
 ```text
-A. 재무 필터: OpenDART 기반 실적/재무 건전성 통과
-B. 타이밍 필터: RSI/분봉/오프닝 레인지 확인
-C. 수급 필터: 거래량/거래대금 충분성 확인
-D. 자금관리: 모의투자에서만 1:2:6 분할 진입 후보 테스트
+Universe: 재무 필터 통과 종목 (OpenDART 기반)
+Entry: RSI 회복 + MACD bullish + Ichimoku above cloud 확인
+Position sizing: 1:2:6 분할 진입 (총 투자금의 1/9 → 2/9 → 6/9)
+Exit: RSI 과열(≥80), 목표수익, 손절, 또는 당일 15:20 강제 청산
 ```
 
-### 6.5 추가 확인 필요
+### 6.5 구현 상태
 
-1. 사용자 제공 원문 또는 신뢰 가능한 일본어 원자료
-2. 후지모토식 전략을 독립 전략으로 볼지, 장초반 전략의 보조 필터로 볼지
-3. 1:2:6 분할 진입을 실제 order_candidate에 반영할지
-4. RSI 30/70을 그대로 쓸지, 한국 주식 데이터로 재최적화할지
-5. 보유 기간을 당일 청산으로 제한할지, 수일 스윙까지 허용할지
+핵심 로직은 `core/fujimoto_126_filter.py`에 구현되어 있으나, 현재는 연구/백테스트 전용 읽기 전용 필터이다.
+실제 주문 생성 및 실행은 별도의 주문 생성 레이어가 필요하며, 현재는 다음과 같이 차단됨:
+- `paper_order_allowed: false`
+- `real_order_allowed: false`
+- `order_execution_enabled: false`
+
+### 6.6 다음 단계
+
+1. 사용자 제공 원문 자료 검증 (있는 경우)
+2. 한국 주식 데이터로 파라미터 최적화 검토 (RSI 기간, 과매수/과매도 임계값 등)
+3. 1:2:6 분할 진입 로직을 주문 생성 파이프라인에 통합
+4. 백테스트를 통한 성능 검증 (최소 90거래일, 충분한 트레이드 수)
+5. paper 거래 시뮬레이션을 통한 실전 적합성 확인
+6. 위 단계를 완료한 후 `status`를 `validated_for_paper`로 업데이트
 
 ---
 
