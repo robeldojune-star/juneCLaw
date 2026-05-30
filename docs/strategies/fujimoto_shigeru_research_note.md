@@ -184,7 +184,7 @@ integration: opening_multi_factor_v1 auxiliary filter candidate
 
 ```text
 - 2차 자료 기반이므로 확정 규칙으로 쓰기 위험
-- 먼저 Kiwoom 분봉/RSI/거래량 데이터 수집 검증 필요
+- 먼저 ka10006 snapshot_1m/RSI/거래량 데이터 수집 검증 필요
 - 사용자 제공 원문 자료가 있으면 그 자료를 우선한다.
 ```
 

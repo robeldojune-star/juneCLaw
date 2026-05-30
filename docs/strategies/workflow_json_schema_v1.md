@@ -73,7 +73,7 @@ status == failed
 ```text
 - run_daily_workflow_stage.py는 주문을 내지 않는다.
 - opening_10m/30m layer는 알림/모의 후보 전용이다.
-- pattern_model_not_ready_for_auto_order 또는 ka10005_timeframe_needs_market_hours_validation이 있으면 자동 주문 금지.
+- pattern_model_not_ready_for_auto_order, snapshot_1m_accumulation_and_backtest_required, need_90_trading_days_intraday_prices, insufficient_backtest_trade_count 중 하나라도 있으면 자동 주문 금지. `ka10005`는 분봉 소스로 사용하지 않는다.
 - Leader AI 주문 workflow는 별도 승인형으로 분리한다.
 ```
 

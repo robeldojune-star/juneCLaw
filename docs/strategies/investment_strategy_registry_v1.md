@@ -1,8 +1,8 @@
 # 투자 전략 등록 v1 — 장초반 변동성·수급·90일 패턴 + 후지모토 시게루 관심 전략
 
-작성 목적: 사용자가 준비한 Word 전략보고서를 바탕으로, 향후 Research AI/Monitoring AI/Leader AI 및 n8n 워크플로우에 연결할 **투자 전략 등록 초안**을 만든다.  
+작성 목적: 사용자가 준비한 Word 전략보고서를 바탕으로, 향후 Research AI/Monitoring AI/Leader AI 및 운영 워크플로우에 연결할 **투자 전략 등록 초안**을 만든다.  
 작업 공간: `/home/june/trading`  
-상태: 초안 / 구현 전 검토용  
+상태: 초안 / 구현 전 검토용. 현재 실행 기준은 `docs/strategies/current_trading_execution_plan.md`를 우선한다. n8n은 비활성 백업/승인 UI 후보이며, 장중 수집은 Hermes cron + trading-runner + ka10006 snapshot_1m 누적으로 수행한다.  
 
 > 주의: 본 문서는 투자 자문이 아니라 시스템 설계·전략 구현을 위한 내부 등록 문서다. 실제 주문 전에는 반드시 실데이터 검증, 백테스트, 모의투자, 리스크 통제 검증이 필요하다.
 
@@ -101,11 +101,11 @@ N 후보:
 
 | 데이터 | 출처 | 현재 준비 상태 |
 |---|---|---|
-| 당일 시가 | Kiwoom intraday 또는 일봉/분봉 | 추가 확인 필요 |
+| 당일 시가 | ka10006 snapshot_1m 또는 검증된 intraday source | snapshot 누적으로 확인 |
 | 현재가 | Kiwoom 현재가 API | core 확장 필요 |
 | 전일 고가/저가 | `daily_prices` | 준비 가능 |
-| 1분/5분봉 | Kiwoom 분봉 API | 수집 모듈 필요 |
-| 오프닝 고가/저가 | 분봉 집계 | 수집 모듈 필요 |
+| 1분/5분 상당 장중 데이터 | ka10006 snapshot_1m 누적 또는 검증된 minute-history API | snapshot_1m 누적 진행 중 |
+| 오프닝 고가/저가 | snapshot_1m 집계 | 누적 데이터 기반 구현 |
 
 ### 3.4 초기 점수화 후보
 
@@ -164,8 +164,8 @@ VPIN = sum(abs(sell_volume_bucket - buy_volume_bucket)) / (n * bucket_volume)
 
 | 데이터 | 출처 | 현재 준비 상태 |
 |---|---|---|
-| 분봉 거래량 | Kiwoom 분봉 API | 수집 모듈 필요 |
-| 현재가 변화율 | Kiwoom 현재가/분봉 | 수집 모듈 필요 |
+| 장중 거래량 | ka10006 snapshot_1m 누적 | 누적 데이터 기반 구현 |
+| 현재가 변화율 | ka10006 snapshot_1m | 누적 데이터 기반 구현 |
 | 투자자별 매매동향 | Kiwoom/거래소 | 추가 조사 필요 |
 | 체결강도/매수매도 잔량 | Kiwoom 실시간/호가 | 2차 구현 |
 
@@ -224,8 +224,8 @@ SVM + genetic algorithm
 | 데이터 | 출처 | 현재 준비 상태 |
 |---|---|---|
 | 90일 일봉 | Kiwoom daily_prices | 일부 준비 가능 |
-| 90일 분봉 | Kiwoom 분봉 | 수집 모듈 필요 |
-| 당일 첫 10/30분 패턴 | Kiwoom 분봉 | 수집 모듈 필요 |
+| 90일 장중 패턴 | ka10006 snapshot_1m 누적 또는 검증된 minute-history API | 충분한 누적 전 blocked |
+| 당일 첫 10/30분 패턴 | snapshot_1m 집계 | 누적 데이터 기반 구현 |
 | 과거 유사일의 종가 방향 | daily_prices | 준비 가능 |
 
 ### 5.4 초기 점수화 후보
@@ -336,7 +336,7 @@ SELL/EXIT: 별도 청산 전략에서 판단
 ### 8.1 데이터 수집 검증
 
 ```text
-1. Kiwoom 분봉 API 사용 가능 여부
+1. ka10006 snapshot_1m 누적 품질과 누락 여부
 2. 당일 시가/현재가/고가/저가/거래량 필드 검증
 3. 10분/30분 오프닝 레인지 계산 가능 여부
 4. 90일치 일봉 데이터 누락 여부
@@ -398,7 +398,7 @@ SELL/EXIT: 별도 청산 전략에서 판단
 
 ## 10. n8n 연결 후보
 
-n8n은 전략 계산을 직접 수행하지 않고, 아래 스크립트를 실행하고 JSON 결과를 읽어 분기한다.
+운영 오케스트레이션은 전략 계산을 직접 수행하지 않고, 아래 스크립트를 실행하고 JSON 결과를 읽어 분기한다. 현재 1차 경로는 Hermes cron + trading-runner이며, n8n은 백업/승인 UI 후보로 둔다.
 
 ```text
 run_opening_strategy_research.py
@@ -406,7 +406,7 @@ run_intraday_opening_monitor.py
 run_strategy_backtest.py
 ```
 
-초기 n8n workflow 후보:
+초기 운영 workflow 후보:
 
 ```text
 09:00~09:30  장초반 데이터 수집
@@ -440,7 +440,7 @@ docs/strategies/investment_strategy_registry_v1.md
 핵심축: 가격 변동성 + 수급 상관관계 + 90일 패턴
 보류축: 후지모토 시게루 매매법, 별도 리서치 후 편입
 초기 상태: 등록 완료 / 구현 전 검토
-다음 단계: 분봉 데이터 수집 가능성 검증 → 백테스트 설계 → 스코어링 구현
+다음 단계: ka10006 snapshot_1m 누적 무결성 검증 → 백테스트 준비도 게이트 → 스코어링 후보 검증
 ```
 
 실제 코드 구현은 바로 들어가지 않고, 먼저 사용자의 전체 워크플로우 설명과 후지모토 시게루 매매법 자료 확인 후 2차 등록 문서에서 확정한다.

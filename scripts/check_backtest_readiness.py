@@ -102,6 +102,7 @@ def main() -> int:
 
     bt_summary: dict[str, Any] = {}
     bt_blocks: list[str] = []
+    bt_variants: dict[str, Any] = {}
     if backtest is None:
         blocks.append("backtest_stage_invalid_json")
         if back_err:
@@ -115,9 +116,11 @@ def main() -> int:
             parsed = details.get("parsed") if isinstance(details.get("parsed"), dict) else None
         if isinstance(parsed, dict):
             bt_summary = dict(parsed.get("summary") or {})
+            bt_variants = dict(parsed.get("variants") or {})
             bt_blocks = [str(x) for x in parsed.get("blocking_conditions", []) if x]
         else:
             bt_summary = dict(backtest.get("summary") or {})
+            bt_variants = dict(backtest.get("variants") or {})
             bt_blocks = [str(x) for x in backtest.get("blocking_conditions", []) if x]
 
         rows_used = int(bt_summary.get("rows_used") or 0)
@@ -129,6 +132,19 @@ def main() -> int:
             blocks.append("backtest_rows_below_min_required")
         if trades < min_trades:
             blocks.append("backtest_trades_below_min_required")
+        variant_avg_returns: list[float] = []
+        for v in bt_variants.values():
+            if not isinstance(v, dict):
+                continue
+            avg_return = v.get("avg_return_pct")
+            if avg_return is None:
+                continue
+            try:
+                variant_avg_returns.append(float(avg_return))
+            except (TypeError, ValueError):
+                continue
+        if variant_avg_returns and max(variant_avg_returns) <= 0:
+            blocks.append("backtest_avg_return_not_positive")
 
     out = {
         "ok": not blocks,
@@ -139,6 +155,7 @@ def main() -> int:
         "summary": {
             "snapshot": snap_summary,
             "backtest": bt_summary,
+            "backtest_variants": bt_variants,
             "backtest_stage_blocks": bt_blocks,
             "readiness_gate": {
                 "lag_enforced": enforce_lag,
@@ -147,14 +164,18 @@ def main() -> int:
                 "snapshot_volume_ok": "snapshot_rows_below_300" not in blocks and "snapshot_active_codes_below_10" not in blocks,
                 "backtest_rows_ok": "backtest_rows_below_min_required" not in blocks,
                 "backtest_trades_ok": "backtest_trades_below_min_required" not in blocks,
+                "backtest_performance_ok": "backtest_avg_return_not_positive" not in blocks,
             },
         },
         "blocking_conditions": list(dict.fromkeys(blocks)),
         "alerts": alerts,
         "next_actions": [
-            "snapshot_rows_below_300이면 장중 snapshot_1m 누적을 계속 유지하세요.",
+            "snapshot_rows_below_300이면 실시간 감시용 ka10006 snapshot_1m 누적을 계속 유지하세요.",
+            "backtest_rows_below_min_required이면 ka10080 기반 collect_intraday_90d를 더 긴 기간/종목에 대해 실행하세요.",
+            "다음 실제 장중에 lag/rows/active_codes를 재확인하세요. 휴장·주말·장외 latest_timestamp_stale은 고장으로 보지 않습니다.",
             "backtest_trades_below_min_required이면 종목별 rows 편차와 OR 조건 과도 여부를 점검하세요.",
-            "모든 readiness_gate가 true가 되기 전까지 auto/real order는 계속 금지하세요.",
+            "backtest_avg_return_not_positive이면 paper 전환 전에 OR 로직/진입·청산 규칙/수수료·슬리피지를 검토하세요.",
+            "모든 readiness_gate가 true가 되기 전까지 paper/real order는 계속 금지하세요.",
         ],
     }
     print(json.dumps(out, ensure_ascii=False, indent=2))

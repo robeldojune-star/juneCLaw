@@ -32,6 +32,7 @@ class RankingItem:
 class IntradayBar:
     stock_code: str
     date: str | None
+    timestamp: str | None
     open: int | None
     high: int | None
     low: int | None
@@ -183,6 +184,44 @@ class MarketDataService:
             )
         return [row for row in rows if isinstance(row, dict)]
 
+    def get_minute_chart_raw(
+        self,
+        stock_code: str,
+        *,
+        base_dt: str | None = None,
+        minute_scope: str = "1",
+        adjusted_price: bool = True,
+    ) -> list[dict[str, Any]]:
+        """Return verified historical minute bars via ka10080.
+
+        Kiwoom REST docs define ka10080 as 주식분봉차트조회요청 on
+        /api/dostk/chart. For 1-minute backtests use tic_scope="1". The
+        response list key is stk_min_pole_chart_qry and each row carries a
+        minute timestamp in cntr_tm, e.g. YYYYMMDDHHMMSS.
+        """
+        code = normalize_stock_code(stock_code)
+        if not is_stock_code(code):
+            raise ValueError(f"Invalid KRX stock code: {stock_code}")
+        body: dict[str, Any] = {
+            "stk_cd": code,
+            "tic_scope": str(minute_scope),
+            "upd_stkpc_tp": "1" if adjusted_price else "0",
+        }
+        if base_dt:
+            body["base_dt"] = str(base_dt)
+        response = self.client.post("ka10080", "/api/dostk/chart", body)
+        rows = response.data.get("stk_min_pole_chart_qry")
+        if not isinstance(rows, list):
+            raise KiwoomAPIError(
+                f"ka10080 response missing list key stk_min_pole_chart_qry; keys={list(response.data.keys())[:12]}",
+                api_id="ka10080",
+                http_status=response.http_status,
+                return_code=response.return_code,
+                return_msg=response.return_msg,
+                response=response.data,
+            )
+        return [row for row in rows if isinstance(row, dict)]
+
     def get_intraday_ohlcv(self, stock_code: str) -> list[IntradayBar]:
         code = normalize_stock_code(stock_code)
         bars: list[IntradayBar] = []
@@ -191,6 +230,7 @@ class MarketDataService:
                 IntradayBar(
                     stock_code=code,
                     date=str(row.get("date") or "").strip() or None,
+                    timestamp=None,
                     open=clean_int(row.get("open_pric"), abs_value=True),
                     high=clean_int(row.get("high_pric"), abs_value=True),
                     low=clean_int(row.get("low_pric"), abs_value=True),

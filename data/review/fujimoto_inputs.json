@@ -1,0 +1,14 @@
+{
+  "005930": {
+    "operating_income_positive": true,
+    "earnings_trend_ok": true,
+    "stage_entry_ready": false,
+    "review_note": "OpenDART 검토 완료: 최근 분기 영업이익 흑자/추세 양호"
+  },
+  "005380": {
+    "operating_income_positive": true,
+    "earnings_trend_ok": false,
+    "stage_entry_ready": false,
+    "review_note": "실적 추세 둔화 가능성, 보수적 운영"
+  }
+}

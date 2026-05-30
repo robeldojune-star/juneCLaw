@@ -37,7 +37,7 @@ Research AI는 단순 BUY/HOLD만 내지 않고, 사용자가 검토할 수 있�
 |---|---:|---|
 | volatility | 30 | 최소 구현 |
 | flow | 30 | 최소 구현 |
-| pattern | 25 | placeholder, 90일 분봉 백테스트 필요 |
+| pattern | 25 | placeholder, 충분한 snapshot_1m 누적 및 백테스트 필요 |
 | risk_adjustment | 15 | 최소 구현 |
 | 합계 | 100 | 최소 구현 |
 

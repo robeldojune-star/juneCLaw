@@ -108,7 +108,7 @@ range: 2026-01-09 ~ 2026-05-22
 
 ```text
 10분 공격형은 알림/모의매매 전용으로 먼저 운용한다.
-BUY 자동 주문은 90일 분봉 백테스트 전 금지한다.
+BUY 자동 주문은 충분한 snapshot_1m 누적, 백테스트, paper 검증 전 금지한다.
 ```
 
 ---
@@ -209,7 +209,7 @@ BUY 자동 주문은 90일 분봉 백테스트 전 금지한다.
 | 거래량 부족 | 거래량 급증률 < 1.10 | 수급 없는 돌파 가능성 |
 | 오프닝 레인지 재이탈 | 돌파 후 OR low 이탈 | 돌파 실패 |
 | 90일 패턴 미검증 | pattern_model_not_ready | 자동 주문 금지, 알림만 허용 |
-| Kiwoom ka10005 시간축 미검증 | market-hours validation 전 | 분봉 기반 자동매매 금지 |
+| snapshot_1m 누적/백테스트 미완료 | 충분한 ka10006 snapshot_1m 누적 및 백테스트 전 | 분봉 기반 자동매매 금지 |
 
 ---
 
@@ -245,7 +245,7 @@ BUY 자동 주문은 90일 분봉 백테스트 전 금지한다.
 | 09:30 표준형 | Smoke OK + 30분 데이터 확인 | 동일 스크립트에 window 옵션 추가 예정 |
 | BUY 후보 알림 | score ≥ 70, critical block 없음 | Telegram/Hermes 알림 |
 | 주문 후보 생성 | 백테스트/모의 통과 후 | Leader AI 별도 workflow |
-| 자동 주문 | 현재 금지 | 90일 분봉 검증 전 불가 |
+| 자동 주문 | 현재 금지 | 충분한 snapshot_1m 누적, 백테스트, paper 검증 전 불가 |
 
 ---
 
@@ -254,13 +254,13 @@ BUY 자동 주문은 90일 분봉 백테스트 전 금지한다.
 현재 코드는 `core/opening_strategy.py`에 최소 구현이 들어가 있으며, v2 수치를 반영하려면 아래 순서가 좋다.
 
 ```text
-1. ka10005 market-hours validation으로 실제 1분/5분 여부 확인
-2. run_opening_strategy_research.py에 --window 10/30 옵션 추가
-3. opening_strategy.py에 v2 score table 반영
-4. intraday_prices 적재 스크립트 작성
-5. 90거래일 분봉 확보 후 backtest_opening_strategy.py 실제 구현
+1. ka10005를 분봉 소스로 사용하지 않도록 차단 조건 유지
+2. ka10006 snapshot_1m 누적 상태를 inspect_snapshot_1m_status.py로 검증
+3. run_opening_strategy_research.py에 --window 10/30 옵션과 snapshot_1m 입력을 안정화
+4. opening_strategy.py에 v2 score table은 백테스트 전 후보값으로만 유지
+5. 충분한 snapshot_1m 거래일 확보 후 backtest_opening_strategy.py 검증
 6. 후지모토 보조 필터 ON/OFF 비교
-7. n8n workflow에 09:10/09:30 분기 추가
+7. n8n이 아니라 Hermes cron/trading-runner를 1차 운영 경로로 유지하고, n8n은 백업/승인 UI 후보로 둔다
 ```
 
 ---

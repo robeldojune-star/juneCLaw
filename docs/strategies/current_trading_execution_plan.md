@@ -1,8 +1,8 @@
-# 현재 트레이딩 운영 실행 계획 — ka10006 snapshot_1m 안정화 기준
+# 현재 트레이딩 운영 실행 계획 — ka10080 과거 1분봉 백테스트 + ka10006 실시간 감시 기준
 
 상태: **현재 기준 문서 / 운영 우선순위 확정**  
 작성 기준: 2026-05-29 현재 `/home/june/trading` 실제 운영 상태  
-목표: `ka10005` 분봉 오염을 배제하고, `ka10006` 장중 snapshot 누적 데이터를 기반으로 오프닝 전략/백테스트/승인형 주문을 단계적으로 복구한다.
+목표: `ka10005` 분봉 오염을 배제하고, `ka10080` 과거 1분봉 데이터를 백테스트 기준 소스로 사용하며, `ka10006` 장중 snapshot 누적 데이터는 실시간 감시/운영 품질 확인용으로 유지한다. mock/prod 자동 전환은 금지하고 목적별 실행 모드를 분리한다.
 
 ---
 
@@ -10,9 +10,11 @@
 
 ```text
 전략 철학은 유지한다.
-데이터 소스 전제는 ka10005 분봉 후보에서 ka10006 snapshot_1m 누적으로 전환한다.
+데이터 소스 전제는 ka10005 분봉 후보를 폐기하고, 백테스트는 ka10080 1분봉, 실시간 감시는 ka10006 snapshot_1m로 분리한다.
 n8n 중심 운영은 중단하고, Hermes cron + trading-runner 직접 호출을 1차 운영 경로로 쓴다.
-백테스트와 paper 검증 전까지 실주문은 계속 blocked 상태로 둔다.
+ka10080 백테스트와 paper 검증 전까지 실주문은 계속 blocked 상태로 둔다.
+mock/prod 모드는 시간별로 자동 전환하지 않고, 백테스트 수집(mock), 장중 관찰(prod), paper 기록, real pilot을 분리한다.
+상세 정책은 `docs/strategies/trading_mode_separation_policy.md`와 `docs/strategies/human_behavior_guard_trading_principles.md`를 따른다.
 ```
 
 ---
@@ -33,8 +35,13 @@ Hermes cron, no_agent=true
 저장 식별자:
 
 ```text
-source = kiwoom_ka10006_snapshot
-time_frame = snapshot_1m
+실시간 감시/장중 품질 확인:
+  source = kiwoom_ka10006_snapshot
+  time_frame = snapshot_1m
+
+과거 백테스트:
+  source = kiwoom_ka10080_minute
+  time_frame = 1min
 ```
 
 현재 n8n 위치:
@@ -64,8 +71,8 @@ n8n active workflow가 장중 수집을 책임진다.
 | 예전 표현 | 현재 해석 |
 |---|---|
 | `ka10005_timeframe_needs_market_hours_validation` | `ka10005`는 분봉 소스로 사용 금지 |
-| `ka10005` 90일 intraday backfill | 검증된 별도 minute-history API가 나오기 전까지 disabled |
-| `intraday_prices / ka10005 후보` | `intraday_prices / ka10006 snapshot_1m accumulation` |
+| `ka10005` 90일 intraday backfill | 폐기. `ka10080 주식분봉차트조회요청`으로 대체 |
+| `intraday_prices / ka10005 후보` | 백테스트는 `kiwoom_ka10080_minute/1min`, 실시간 감시는 `kiwoom_ka10006_snapshot/snapshot_1m` |
 
 ---
 
@@ -345,8 +352,10 @@ secrets/API key/account number 출력 금지
 
 ## 6. 현재 다음 작업
 
-1. `snapshot_1m` 장중 누적을 계속 관찰한다. 정상 조건: cron `last_status=ok`, 품질 오류 0, 최신 lag가 수집 주기 대비 과도하게 벌어지지 않음.
-2. 다음 장중 신호 생성일에 OR10/OR30 candidate loop가 후보별 score breakdown을 출력하는지 재확인한다.
-3. `backtest_opening_strategy_90d`는 rows/trades가 기준 미달이면 계속 blocked로 둔다.
-4. `daily_pnl_feedback_report`에서 snapshot 누적 추세를 장후마다 확인한다.
-5. Phase 5 Leader 승인형 paper 주문은 백테스트 준비도 기준 통과 전까지 시작하지 않는다.
+1. `snapshot_1m` 누적을 계속 유지한다. 정상 조건: cron `last_status=ok`, 품질 오류 0, 장중 최신 lag가 수집 주기 대비 과도하게 벌어지지 않음.
+2. 다음 실제 장중에 `lag` / `rows` / `active_codes`를 재확인한다. 휴장·주말·장외의 `latest_timestamp_stale`은 고장으로 보지 않는다.
+3. 다음 장중 신호 생성일에 OR10/OR30 candidate loop가 후보별 score breakdown을 출력하는지 재확인한다.
+4. `backtest_opening_strategy_90d`는 `rows_used` / `total_variant_trades`가 기준 미달이면 계속 blocked로 둔다.
+5. rows/trades 기준 통과 전까지 Phase 5 Leader 승인형 paper 주문과 real 주문은 모두 금지한다.
+6. `daily_pnl_feedback_report`에서 snapshot 누적 추세를 장후마다 확인한다.
+7. `signal=0` 원인은 다음 거래일 morning signal pipeline에서 데이터 부재/날짜 필터/임계값/시장 조건으로 분리해 재확인한다. 전략 threshold/weight/order behavior는 검토 없이 변경하지 않는다.

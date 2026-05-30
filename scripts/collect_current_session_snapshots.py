@@ -25,6 +25,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from core.kiwoom_client import KiwoomAPIClient, clean_int  # noqa: E402
 from core.market_data_service import MarketDataService, normalize_stock_code  # noqa: E402
 from core.supabase_rest import SupabaseRestClient, SupabaseRestError  # noqa: E402
+from core.trading_mode import load_env, redacted_mode_dict, resolve_execution_mode  # noqa: E402
 
 
 WORKFLOW = "daily_trading_workflow_v1"
@@ -130,6 +131,7 @@ def main() -> int:
     parser.add_argument("--stock-codes", nargs="+", default=None)
     parser.add_argument("--limit", type=int, default=10)
     parser.add_argument("--delay", type=float, default=0.25)
+    parser.add_argument("--trading-env", choices=["mock", "prod"], default=None, help="Kiwoom env for current-session snapshots. Defaults to LIVE_DATA_KIWOOM_ENV/TRADING_ENV/mock.")
     parser.add_argument("--allow-offhours", action="store_true")
     args = parser.parse_args()
 
@@ -138,6 +140,9 @@ def main() -> int:
     market_hours = 900 <= hhmm <= 1535 and now_kst.weekday() < 5
     blocks: list[str] = []
     alerts: list[str] = []
+    mode = resolve_execution_mode(purpose="collect_current_session_snapshots", requested_env=args.trading_env, env=load_env(PROJECT_ROOT / ".env"))
+    if not mode.can_collect_live_snapshot:
+        blocks.append("live_snapshot_collection_mode_not_allowed")
 
     if args.stock_codes:
         codes = []
@@ -164,7 +169,7 @@ def main() -> int:
     fetch_errors: list[str] = []
     timestamp = _minute_timestamp(now_kst)
     if not blocks:
-        client = KiwoomAPIClient.from_env(PROJECT_ROOT / ".env")
+        client = KiwoomAPIClient.from_env(PROJECT_ROOT / ".env", trading_env=mode.kiwoom_env)
         market = MarketDataService(client)
         for idx, code in enumerate(codes):
             if idx and args.delay > 0:
@@ -200,6 +205,7 @@ def main() -> int:
         "generated_at": datetime.now(ZoneInfo("UTC")).isoformat(timespec="seconds"),
         "summary": {
             "timestamp_kst_minute": timestamp,
+            "execution_mode": redacted_mode_dict(mode),
             "market_hours": market_hours,
             "requested_stock_count": len(codes),
             "payload_rows": len(payload),

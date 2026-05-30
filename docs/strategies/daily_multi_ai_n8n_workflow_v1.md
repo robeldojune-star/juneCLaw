@@ -1,8 +1,8 @@
-# 시간대별 멀티 AI + n8n 운영 워크플로우 v1
+# 시간대별 멀티 AI 운영 워크플로우 v1
 
 작성 목적: 사용자가 제안한 시간대별 자동매매 운영 순서를 보존하고, 실제 운영에 맞게 조정 가능한 권장안을 정리한다.  
 연결 전략: `opening_multi_factor_v1`, 향후 신규 전략 registry  
-상태: 운영 설계안 / 실제 n8n import 전 검토 필요
+상태: 운영 설계안 / 현재 기준은 `docs/strategies/current_trading_execution_plan.md`를 우선한다. n8n은 1차 운영 경로가 아니라 비활성 백업/승인 UI 후보로 둔다.
 
 ---
 
@@ -62,10 +62,10 @@
 
 | 시간 | 권장 워크플로우 | 담당 | 작업 내용 | 출력 | 모델 등급 |
 |---|---|---|---|---|---|
-| 06:50 | `system_health_check` | Monitoring AI / n8n | 서버, .env 존재, Supabase/Kiwoom/OpenDART 최소 연결 확인 | health JSON | 저비용 |
+| 06:50 | `system_health_check` | Monitoring AI / Hermes cron 또는 runner | 서버, .env 존재, Supabase/Kiwoom/OpenDART 최소 연결 확인 | health JSON | 저비용 |
 | 07:00 | `news_briefing_growth_analysis` | Research AI | 뉴스/공시/성장 테마 수집, 위험 뉴스 제외 | 텔레그램 브리핑, `research_notes` | 중~상위 |
 | 07:30 | `stock_morning_signals` | Research AI | 전일 데이터 기준 후보 종목, score breakdown 생성 | `trading_signals`, 후보 TOP N | 중간 |
-| 08:00 | `stock_trading_daily_workflow` | n8n + Python core | ETL 점검 → 지표 → 신호 → 주문 후보 점검 → 보고 | 일일 준비 리포트 | 저~중간 |
+| 08:00 | `stock_trading_daily_workflow` | Hermes/trading-runner + Python core | ETL 점검 → 지표 → 신호 → 주문 후보 점검 → 보고 | 일일 준비 리포트 | 저~중간 |
 | 08:30 | `premarket_account_risk_check` | Monitoring AI | kt00004 계좌/예수금/보유종목/위험 이벤트 확인 | 거래 가능 여부 | 저비용 |
 | 08:45 | `candidate_compression_layer` | Leader AI | 오늘 실제 감시할 종목을 TOP 5~10으로 압축 | `order_candidates` 후보 | 중간 |
 | 09:00 | `morning_investment_layer` | Leader AI | 장 시작 직후 스냅샷 확인, 즉시 매수 금지/관찰 시작 | 장초반 상태 | 저비용 |
@@ -75,8 +75,8 @@
 | 11:30 | `midday_position_review` | Monitoring AI | 보유종목 손익, 리스크, 점심장 유동성 둔화 확인 | 보유/감시 리포트 | 저비용 |
 | 14:30 | `pre_close_risk_review` | Monitoring AI | 손절/익절/당일 청산 후보 점검 | 청산 후보 | 저비용 |
 | 15:00 | `evening_selloff_layer` | Leader/Monitoring AI | 당일 청산, 매도 후보, 리스크 축소 | 청산 결과 | 저비용 |
-| 15:20 | `aftermarket_multi_timeframe_collection` | Python core | 분봉/일봉/멀티타임프레임 데이터 수집 | `intraday_prices`, `daily_prices` | 저비용 |
-| 15:40 | `stock_nightly_collection` | Python core / n8n | OHLCV 확정 수집, 지표 재계산 준비 | 수집 리포트 | 저비용 |
+| 15:20 | `aftermarket_multi_timeframe_collection` | Python core | snapshot_1m 누적 상태 확인 + 일봉/멀티타임프레임 데이터 수집 | `intraday_prices`, `daily_prices` | 저비용 |
+| 15:40 | `stock_nightly_collection` | Python core / trading-runner | OHLCV 확정 수집, 지표 재계산 준비 | 수집 리포트 | 저비용 |
 | 16:10 | `daily_pnl_feedback_report` | Monitoring AI | 당일 손익, 신호 대비 실행, 실패 원인 분석 | 텔레그램/문서 리포트 | 중간 |
 | 20:00 | `strategy_review_if_needed` | Hermes / Research AI | 손익 리포트 기반 전략 개선안 작성. 매일 실행하지 않고 필요 시 실행 | 전략 수정 제안 | 상위 |
 
@@ -291,20 +291,22 @@ LLM은 판단/해석/리포트에 쓰고, 반복 계산은 Python으로 처리�
 
 ---
 
-## 8. n8n 운영 원칙
+## 8. 운영 오케스트레이션 원칙
 
-n8n이 담당:
+현재 1차 운영 경로는 Hermes cron + trading-runner이다. n8n은 비활성 백업/향후 승인 UI 후보로만 둔다.
+
+오케스트레이션 계층이 담당:
 
 ```text
 - 시간 스케줄
-- Python 스크립트 실행
+- Python stage 실행
 - 성공/실패 분기
-- 재시도
+- 재시도 또는 alert
 - 텔레그램/웹훅 알림
-- 승인 게이트
+- 승인 게이트 후보
 ```
 
-n8n이 담당하지 않음:
+오케스트레이션 계층이 담당하지 않음:
 
 ```text
 - 전략 수식 계산
@@ -313,7 +315,7 @@ n8n이 담당하지 않음:
 - 장기 memory 저장 판단
 ```
 
-모든 Python 스크립트는 n8n이 읽을 수 있도록 JSON stdout을 출력한다.
+모든 Python 스크립트는 Hermes/n8n이 읽을 수 있도록 JSON stdout을 출력한다.
 
 ---
 
@@ -323,20 +325,20 @@ n8n이 담당하지 않음:
 |---|---|---|
 | 1 | 시간대별 운영 문서화 | 완료 |
 | 2 | workflow JSON registry 작성 | 완료 |
-| 3 | n8n import용 JSON 작성 | 대기 |
-| 4 | 07:00/07:30/08:00 스크립트 표준화 | 대기 |
+| 3 | Hermes cron + trading-runner 직접 수집 경로 구축 | 완료 |
+| 4 | ka10006 snapshot_1m 무결성 점검 | 진행 중 |
 | 5 | 09:10/09:30 장초반 전략 실행 연결 | 대기 |
 | 6 | 15:00/15:40 장후 수집 및 손익 리포트 연결 | 대기 |
-| 7 | 1주일 모의/소액 운영 후 피드백 루프 적용 | 대기 |
+| 7 | 충분한 백테스트 후 paper-only 피드백 루프 적용 | 대기 |
 
 ---
 
 ## 10. 다음 구현 후보
 
 ```text
-1. workflows/n8n/daily_trading_workflow_v1.json 작성
-2. scripts/run_daily_workflow_stage.py 작성
+1. docs/strategies/current_trading_execution_plan.md를 기준 계획으로 유지
+2. scripts/inspect_snapshot_1m_status.py로 snapshot_1m 품질 점검
 3. 각 시간대별 workflow가 같은 JSON 스키마를 출력하도록 통일
-4. daily_pnl_feedback_report 스크립트 작성
-5. n8n에서 Telegram 알림 연결
+4. daily_pnl_feedback_report에 snapshot 누적 요약 반영
+5. 필요 시 n8n은 백업/승인 UI 후보로만 연결
 ```

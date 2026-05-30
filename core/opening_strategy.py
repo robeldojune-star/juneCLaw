@@ -29,6 +29,10 @@ class OpeningStrategyInput:
     bars: list[OpeningBar] = field(default_factory=list)
     financial_filter_passed: bool | None = None
     rsi: float | None = None
+    turnover: float | None = None
+    operating_income_positive: bool | None = None
+    earnings_trend_ok: bool | None = None
+    stage_entry_ready: bool | None = None
 
 
 @dataclass(frozen=True)
@@ -193,20 +197,104 @@ def risk_adjustment(inp: OpeningStrategyInput) -> tuple[float, dict[str, Any], l
     return max(score, 0.0), details, blocks
 
 
+def fujimoto_aux_filter_score(inp: OpeningStrategyInput) -> tuple[float, dict[str, Any], list[str]]:
+    details: dict[str, Any] = {
+        "max_score": 15,
+        "score": 0.0,
+        "financial": {"score": 0.0, "operating_income_positive": inp.operating_income_positive, "earnings_trend_ok": inp.earnings_trend_ok, "source": "opendart"},
+        "rsi": {"score": 0.0, "value": inp.rsi, "band": "unknown"},
+        "liquidity": {"score": 0.0, "volume_spike_ratio": None, "turnover_ok": None},
+        "stage_entry": {"score": 0.0, "stage_entry_ready": inp.stage_entry_ready, "mode": "1:2:6_risk_budget"},
+    }
+    blocks: list[str] = []
+    score = 0.0
+
+    # 1) financial (max 5)
+    if inp.operating_income_positive is None and inp.earnings_trend_ok is None:
+        blocks.append("fujimoto_financial_data_missing")
+    elif inp.operating_income_positive is True and inp.earnings_trend_ok is True:
+        details["financial"]["score"] = 5.0
+        score += 5.0
+    elif inp.operating_income_positive is True:
+        details["financial"]["score"] = 3.0
+        score += 3.0
+    else:
+        blocks.append("fujimoto_financial_filter_failed")
+
+    # 2) rsi (max 4)
+    rsi = inp.rsi
+    if rsi is None:
+        blocks.append("fujimoto_rsi_missing")
+    elif rsi >= 80:
+        details["rsi"]["band"] = "overheated"
+        blocks.append("fujimoto_rsi_overheated")
+    elif 45 <= rsi < 70:
+        details["rsi"]["score"] = 4.0
+        details["rsi"]["band"] = "trend"
+        score += 4.0
+    elif 30 <= rsi < 45:
+        details["rsi"]["score"] = 2.0
+        details["rsi"]["band"] = "rebound"
+        score += 2.0
+    else:
+        details["rsi"]["band"] = "neutral"
+
+    # 3) liquidity (max 3)
+    volumes = [v for b in inp.bars if (v := _num(b.volume)) is not None]
+    volume_spike_ratio = None
+    if len(volumes) >= 3 and mean(volumes[:-1]) > 0:
+        volume_spike_ratio = volumes[-1] / float(mean(volumes[:-1]))
+    details["liquidity"]["volume_spike_ratio"] = volume_spike_ratio
+
+    turnover_ok = inp.turnover is not None and inp.turnover > 0
+    details["liquidity"]["turnover_ok"] = turnover_ok
+    if volume_spike_ratio is None:
+        blocks.append("fujimoto_volume_insufficient")
+    elif volume_spike_ratio >= 1.30 and turnover_ok:
+        details["liquidity"]["score"] = 3.0
+        score += 3.0
+    elif volume_spike_ratio >= 1.10:
+        details["liquidity"]["score"] = 2.0
+        score += 2.0
+    else:
+        blocks.append("fujimoto_volume_insufficient")
+
+    if not turnover_ok:
+        blocks.append("fujimoto_turnover_insufficient")
+
+    # 4) staged entry readiness (max 3)
+    if inp.stage_entry_ready is None:
+        blocks.append("fujimoto_stage_entry_not_ready")
+    elif inp.stage_entry_ready is True:
+        details["stage_entry"]["score"] = 3.0
+        score += 3.0
+
+    details["score"] = min(score, 15.0)
+    return min(score, 15.0), details, blocks
+
+
 def score_opening_multi_factor(inp: OpeningStrategyInput) -> StrategyScore:
     v_score, v_details, v_blocks = volatility_score(inp)
     f_score, f_details, f_blocks = flow_score(inp.bars)
     p_score, p_details, p_blocks = pattern_score_placeholder(inp.bars)
     r_score, r_details, r_blocks = risk_adjustment(inp)
+    fa_score, fa_details, fa_blocks = fujimoto_aux_filter_score(inp)
     total = v_score + f_score + p_score + r_score
-    blocks = v_blocks + f_blocks + p_blocks + r_blocks
+    blocks = v_blocks + f_blocks + p_blocks + r_blocks + fa_blocks
 
-    if "financial_filter_failed" in blocks:
+    critical_blocks = {
+        "financial_filter_failed",
+        "fujimoto_financial_filter_failed",
+        "fujimoto_rsi_overheated",
+        "fujimoto_gap_overheated",
+    }
+
+    if any(b in critical_blocks for b in blocks):
         signal = "HOLD"
-    elif total >= 70:
+    elif total >= 70 and fa_score >= 8:
         signal = "BUY"
     elif total >= 55:
-        signal = "HOLD"
+        signal = "WATCH"
     else:
         signal = "HOLD"
 
@@ -220,8 +308,14 @@ def score_opening_multi_factor(inp: OpeningStrategyInput) -> StrategyScore:
             "flow": f_details,
             "pattern": p_details,
             "risk_adjustment": r_details,
-            "thresholds": {"buy_candidate": 70, "watch_min": 55, "note": "candidate thresholds pending backtest"},
+            "fujimoto_aux_filter": fa_details,
+            "thresholds": {
+                "buy_candidate": 70,
+                "watch_min": 55,
+                "fujimoto_aux_min": 8,
+                "note": "candidate thresholds pending backtest",
+            },
         },
         blocking_conditions=blocks,
-        reason="opening multi-factor candidate score; 90d pattern currently placeholder until real-data backtest is available",
+        reason="opening multi-factor candidate score with fujimoto auxiliary filter; 90d pattern currently placeholder until real-data backtest is available",
     )

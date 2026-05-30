@@ -17,6 +17,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from core.supabase_rest import SupabaseRestClient, SupabaseRestError, num  # noqa: E402
+from core.trading_mode import load_env, redacted_mode_dict, resolve_execution_mode  # noqa: E402
 
 
 def run_json(cmd: list[str], timeout: int = 240) -> tuple[dict[str, Any] | None, str | None, int]:
@@ -34,10 +35,14 @@ def main() -> int:
     parser.add_argument("--max-orders", type=int, default=3)
     parser.add_argument("--total-budget", type=float, default=1_000_000)
     parser.add_argument("--per-stock-budget", type=float, default=300_000)
+    parser.add_argument("--trading-env", choices=["mock", "prod"], default=None)
     args = parser.parse_args()
 
     blocks: list[str] = []
     alerts: list[str] = []
+    mode = resolve_execution_mode(purpose="simulate_approved_orders", requested_env=args.trading_env, env=load_env(PROJECT_ROOT / ".env"))
+    if not mode.can_write_simulated_orders or mode.can_call_real_order_api:
+        blocks.append("paper_order_mode_guard_failed")
 
     loop, err, rc = run_json([sys.executable, "scripts/run_opening_strategy_candidate_loop.py", "--window", str(args.window), "--limit", "10"], timeout=300)
     if loop is None:
@@ -127,6 +132,7 @@ def main() -> int:
             "inserted_order_count": len(inserted),
             "remaining_budget": round(remaining_budget, 2),
             "mode": "paper_only",
+            "execution_mode": redacted_mode_dict(mode),
         },
         "approved_orders": approved,
         "inserted_orders": inserted,

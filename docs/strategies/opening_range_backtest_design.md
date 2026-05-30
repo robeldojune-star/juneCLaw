@@ -1,8 +1,8 @@
 # 10분/30분 오프닝 레인지 백테스트 설계 v1
 
 연결 전략: `opening_multi_factor_v1`  
-상태: 설계 완료 / 구현 대기  
-전제: 실제 Kiwoom 데이터만 사용. 가짜·랜덤 데이터 금지.
+상태: 설계 완료 / 구현 대기. 현재 기준은 `docs/strategies/current_trading_execution_plan.md`를 우선한다.  
+전제: 실제 Kiwoom 데이터만 사용. 가짜·랜덤 데이터 금지. `ka10005` date-only 응답은 분봉으로 사용하지 않고, 장중 데이터는 `ka10006` 기반 `snapshot_1m` 누적을 사용한다.
 
 ---
 
@@ -35,7 +35,7 @@ B. 30분 오프닝 레인지: 보수형
 |---|---|---:|
 | KOSPI TOP50 유니버스 | `kospi_top50` | 필수 |
 | 90일 이상 일봉 | `daily_prices` / Kiwoom `ka10081` | 필수 |
-| 장초반 분봉 | `intraday_prices` / Kiwoom `ka10005` 후보 | 필수 |
+| 장초반 snapshot_1m | `intraday_prices` / Kiwoom `ka10006` snapshot 누적 | 필수 |
 | 현재가/당일 OHLCV | Kiwoom `ka10006`/`ka10007` 후보 | 필수 |
 | 재무 필터 | OpenDART / `financial_scores` 예정 | 선택, 후지모토 보조 필터 |
 | RSI/기술지표 | `technical_indicators` 또는 분봉 계산 | 선택 |
@@ -142,11 +142,11 @@ entry = current_price > larry_entry AND opening_range_breakout
 ## 8. 구현 순서
 
 ```text
-1. Kiwoom ka10005가 실제 1분/5분 분봉인지 장중 검증
-2. intraday_prices 적재 스크립트 작성
-3. 90일치 분봉 확보 가능성 확인
+1. ka10005를 분봉 소스로 사용하지 않도록 차단 조건 유지
+2. ka10006 current-session snapshot을 `intraday_prices.time_frame=snapshot_1m`으로 누적
+3. 90일치 snapshot_1m 누적 또는 검증된 별도 minute-history API 확보 전까지 백테스트/주문 blocked 유지
 4. 10분/30분 오프닝 레인지 feature 생성
-5. 단일 종목 삼성전자 백테스트
+5. 단일 종목 삼성전자 백테스트 smoke
 6. KOSPI TOP50 확장
 7. 후지모토 보조 필터 ON/OFF 비교
 ```

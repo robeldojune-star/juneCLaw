@@ -1,6 +1,6 @@
 # Leader AI 승인형 주문 Workflow 설계 v1
 
-상태: 설계 완료 / 자동 주문 미구현  
+상태: 설계 완료 / 자동 주문 미구현. 현재 기준은 `docs/strategies/current_trading_execution_plan.md`를 우선한다.  
 목적: Research AI가 만든 후보를 Leader AI가 승인형으로 검토하고, Monitoring AI 리스크 체크를 통과한 경우에만 별도 주문 실행 workflow로 넘긴다.
 
 ---
@@ -11,7 +11,7 @@
 1. Research AI는 주문을 내지 않는다.
 2. n8n은 승인 게이트/알림/재시도만 담당한다.
 3. Leader AI는 주문 후보를 검토하지만, 초기 운영에서는 사람 승인 또는 모의 주문만 허용한다.
-4. pattern_model_not_ready, ka10005_timeframe_needs_market_hours_validation, no_budget, account_risk 등의 blocking_conditions가 있으면 주문 후보에서 제외한다.
+4. pattern_model_not_ready, snapshot_1m_accumulation_and_backtest_required, no_budget, account_risk 등의 blocking_conditions가 있으면 주문 후보에서 제외한다. `ka10005`는 분봉 소스로 사용하지 않는다.
 5. 실제 주문 API는 별도 `approved_order_execution` workflow로 분리한다.
 ```
 
@@ -68,7 +68,9 @@ flowchart TD
 
 ```text
 pattern_model_not_ready_for_auto_order
-ka10005_timeframe_needs_market_hours_validation
+snapshot_1m_accumulation_and_backtest_required
+need_90_trading_days_intraday_prices
+insufficient_backtest_trade_count
 opening_candidate_list_empty
 candidate_compression_invalid_json
 score_below_buy_threshold

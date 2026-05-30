@@ -110,8 +110,19 @@ def _run_command(name: str, args: list[str], timeout: int = 180) -> WorkflowStep
 
 def stage_system_health_check() -> list[WorkflowStep]:
     env = _read_env_keys()
-    required = ["KIWOOM_REST_API_KEY", "KIWOOM_REST_API_SECRET", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "DATABASE_URL"]
+    # Support environment-suffixed API keys like _MOCK or _PROD
+    trading_env = (env.get("TRADING_ENV") or "mock").strip().lower()
+    suffix = "_PROD" if trading_env == "prod" else "_MOCK"
+    
+    required = ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "DATABASE_URL"]
     present = {k: bool(env.get(k)) for k in required}
+    
+    # Check Kiwoom Keys with support for fallback / environment-suffixed variants
+    kiwoom_keys = ["KIWOOM_REST_API_KEY", "KIWOOM_REST_API_SECRET"]
+    for k in kiwoom_keys:
+        has_key = bool(env.get(f"{k}{suffix}")) or bool(env.get(k))
+        present[k] = has_key
+        
     blocks = [f"missing_env_{k}" for k, ok in present.items() if not ok]
     steps = [WorkflowStep(name="env_presence", ok=not blocks, summary="required env keys presence checked; values hidden", details={"present": present}, blocking_conditions=blocks)]
     steps.append(_run_command("kiwoom_core_smoke", [sys.executable, "scripts/smoke_test_kiwoom_core.py"], timeout=120))
@@ -138,7 +149,10 @@ def stage_stock_trading_daily_workflow() -> list[WorkflowStep]:
 
 
 def stage_premarket_account_risk_check() -> list[WorkflowStep]:
-    return [_run_command("kiwoom_account_api_smoke", [sys.executable, "scripts/test_kiwoom_mock_account_apis.py"], timeout=120)]
+    return [
+        _run_command("kiwoom_mock_account_balance_check", [sys.executable, "scripts/check_kiwoom_account_balance.py", "--trading-env", "mock"], timeout=120),
+        _run_command("kiwoom_prod_account_balance_check_read_only", [sys.executable, "scripts/check_kiwoom_account_balance.py", "--trading-env", "prod"], timeout=120),
+    ]
 
 
 def stage_candidate_compression_layer() -> list[WorkflowStep]:
@@ -161,7 +175,7 @@ def stage_morning_investment_layer() -> list[WorkflowStep]:
 
 
 def stage_collect_current_session_snapshots() -> list[WorkflowStep]:
-    return [_run_command("collect_current_session_snapshots", [sys.executable, "scripts/collect_current_session_snapshots.py", "--limit", "10"], timeout=240)]
+    return [_run_command("collect_current_session_snapshots", [sys.executable, "scripts/collect_current_session_snapshots.py", "--limit", "10", "--trading-env", "prod"], timeout=240)]
 
 
 def stage_intraday_timing_alert(window: int) -> list[WorkflowStep]:
@@ -177,7 +191,7 @@ def stage_intraday_timing_alert(window: int) -> list[WorkflowStep]:
 def stage_opening_layer(window: int, stage_name: str) -> list[WorkflowStep]:
     mode_block = "pattern_model_not_ready_for_auto_order"
     steps = [
-        _run_command("collect_current_session_snapshots", [sys.executable, "scripts/collect_current_session_snapshots.py", "--limit", "10"], timeout=240),
+        _run_command("collect_current_session_snapshots", [sys.executable, "scripts/collect_current_session_snapshots.py", "--limit", "10", "--trading-env", "prod"], timeout=240),
         _run_command(
             stage_name,
             [sys.executable, "scripts/run_opening_strategy_candidate_loop.py", "--window", str(window), "--limit", "10"],
@@ -189,9 +203,9 @@ def stage_opening_layer(window: int, stage_name: str) -> list[WorkflowStep]:
             name=f"auto_order_guard_{window}m",
             ok=True,
             status="blocked",
-            summary="opening strategy evaluates compressed TOP candidates only; auto order disabled until accumulated snapshot_1m backtest passes",
-            blocking_conditions=[mode_block, "snapshot_1m_accumulation_and_backtest_required"],
-            details={"window_minutes": window, "order_execution_enabled": False, "candidate_source": "candidate_compression_layer", "bar_source": "kiwoom_ka10006_snapshot"},
+            summary="opening strategy evaluates compressed TOP candidates only; auto order disabled until ka10080 backtest + paper validation passes",
+            blocking_conditions=[mode_block, "ka10080_backtest_and_paper_validation_required"],
+            details={"window_minutes": window, "order_execution_enabled": False, "candidate_source": "candidate_compression_layer", "bar_source": "kiwoom_ka10006_snapshot", "backtest_source": "kiwoom_ka10080_minute"},
         )
     )
     return steps
@@ -222,19 +236,33 @@ def stage_ka10005_timeframe_validation() -> list[WorkflowStep]:
 
 def stage_collect_intraday_90d() -> list[WorkflowStep]:
     return [
-        WorkflowStep(
-            name="collect_intraday_90d_guard",
-            ok=True,
-            status="blocked",
-            summary="ka10005 is not minute-like; historical 90d minute backfill is disabled until a verified Kiwoom minute-history API is identified",
-            blocking_conditions=["verified_minute_history_api_not_available"],
-            details={"disabled_source": "ka10005", "active_source": "ka10006 snapshot_1m accumulation"},
+        _run_command(
+            "collect_intraday_90d",
+            [
+                sys.executable,
+                "scripts/collect_intraday_90d.py",
+                "--stock-codes",
+                "005930",
+                "000660",
+                "035420",
+                "005380",
+                "068270",
+                "--days",
+                "90",
+                "--max-requests-per-stock",
+                "4",
+                "--max-rows-per-stock",
+                "3000",
+                "--trading-env",
+                "mock",
+            ],
+            timeout=600,
         )
     ]
 
 
 def stage_backtest_opening_strategy_90d() -> list[WorkflowStep]:
-    return [_run_command("backtest_opening_strategy_90d", [sys.executable, "scripts/backtest_opening_strategy.py", "--stock-codes", "005930", "000660", "035420", "005380", "068270", "--days", "130", "--time-frame", "snapshot_1m"], timeout=300)]
+    return [_run_command("backtest_opening_strategy_90d", [sys.executable, "scripts/backtest_opening_strategy.py", "--stock-codes", "005930", "000660", "035420", "005380", "068270", "--days", "130", "--time-frame", "1min", "--source", "kiwoom_ka10080_minute", "--eligible-opening-only", "--fee-bps", "23", "--slippage-bps", "10"], timeout=300)]
 
 
 def stage_simulate_approved_orders() -> list[WorkflowStep]:
