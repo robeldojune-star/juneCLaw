@@ -1,0 +1,33 @@
+# Disclosure type weights for scoring
+# Higher weight means greater expected market impact
+# Based on typical market reaction to disclosure categories
+weights:
+  # Earnings and financials
+  영업(잠정)실적: 30
+  영업실적: 30
+  분기실적: 25
+  반기실적: 25
+  연간실적: 30
+  # Dividends and returns
+  배당결정: 25
+  중간배당: 20
+  자사주취득결정: 20
+  소각결정: 15
+  # Financing and capital changes
+  유상증자결정: 20
+  무상증자결정: 15
+  전환사채발행결정: 10
+  신주인수권부사채발행결정: 10
+  # M&A and major contracts
+  주요계약체결: 20
+  합병결정: 25
+  영업양수도결정: 20
+  # Governance and management
+  경영진변경: 15
+  감사인변경: 10
+  # Regulatory and legal
+  소송: 10
+  행정처분: -10  # Negative impact
+  # Others (default low impact)
+  기타: 5
+  해당사항없음: 0

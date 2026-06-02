@@ -1,0 +1,7 @@
+{
+  "environment": "mock",
+  "base_url": "https://mockapi.kiwoom.com",
+  "api_key": "your-mock-api-key",
+  "api_secret": "your-mock-api-secret",
+  "account_no": "your-mock-account-no"
+}

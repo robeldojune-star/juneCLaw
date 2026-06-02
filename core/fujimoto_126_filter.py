@@ -30,10 +30,13 @@ class PriceBar:
     low: float
     close: float
     volume: int = 0
+    bid_price: float = 0.0
+    ask_price: float = 0.0
+    bid_volume: int = 0
+    ask_volume: int = 0
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
-
 
 def _round(value: float | None, digits: int = 4) -> float | None:
     return None if value is None else round(float(value), digits)

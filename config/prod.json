@@ -1,0 +1,7 @@
+{
+  "environment": "prod",
+  "base_url": "https://api.kiwoom.com",
+  "api_key": "your-prod-api-key",
+  "api_secret": "your-prod-api-secret",
+  "account_no": "your-prod-account-no"
+}

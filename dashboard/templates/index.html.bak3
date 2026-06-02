@@ -1,0 +1,80 @@
+async function loadAccountInfo() {
+    const env = document.getElementById('envSelect').value;
+    try {
+        const resp = await fetch(`/api/account?env=${env}`);
+        const data = await resp.json();
+        const accountInfoDiv = document.getElementById('accountInfo');
+        if (data.error) {
+            accountInfoDiv.innerHTML = `<p class="text-danger">오류: ${data.error}</p>`;
+            return;
+        }
+        const cash = data.cash?.data || {};
+        const holdings = data.cash?.data?.stk_acnt_evlt_prst || [];
+        if (!Array.isArray(holdings)) {
+            accountInfoDiv.innerHTML = `<p class="text-danger">보유 종목 데이터를 가져올 수 없습니다.</p>`;
+            return;
+        }
+        const toNum = (str) => {
+            if (typeof str !== 'string') return Number(str) || 0;
+            const num = parseInt(str.replace(/^0+/, '') || '0', 10);
+            return isNaN(num) ? 0 : num;
+        };
+        let html = `
+            <table class="table table-sm table-borderless mb-0">
+                <thead>
+                    <tr>
+                        <th class="label-text">종목명</th>
+                        <th class="label-text">매입가</th>
+                        <th class="label-text">보유수량</th>
+                        <th class="label-text">평가금액</th>
+                        <th class="label-text">평가손익</th>
+                        <th class="label-text">수익률(%)</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        holdings.forEach(h => {
+            const name = h.stk_nm || '-';
+            const avgPrice = toNum(h.avg_prc);
+            const qty = toNum(h.rmnd_qty) || toNum(h.setl_remn) || 0;
+            const evalAmt = toNum(h.evlt_amt);
+            const plAmt = toNum(h.pl_amt);
+            const plRate = parseFloat(h.pl_rt) || 0;
+            html += `
+                <tr>
+                    <td>${name}</td>
+                    <td>${avgPrice.toLocaleString()} 원</td>
+                    <td>${qty.toLocaleString()} 주</td>
+                    <td>${evalAmt.toLocaleString()} 원</td>
+                    <td class="${plAmt >= 0 ? 'profit-positive' : 'profit-negative'}">${plAmt.toLocaleString()} 원</td>
+                    <td class="${plRate >= 0 ? 'profit-positive' : 'profit-negative'}">${plRate.toFixed(2)}%</td>
+                </tr>
+            `;
+        });
+        html += `
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="6" class="text-end"><strong>총계:</strong></td>
+                    </tr>
+                    <tr>
+                        <td colspan="2"></td>
+                        <td colspan="4">
+                            <table class="table table-sm table-borderless w-100">
+                                <tr><td class="label-text">총매입금액:</td><td>${toNum(cash.tot_pur_amt).toLocaleString()} 원</td></tr>
+                                <tr><td class="label-text">총평가액:</td><td>${toNum(cash.aset_evlt_amt).toLocaleString()} 원</td></tr>
+                                <tr><td class="label-text">누적 실현손익:</td><td class="${toNum(cash.lspft_amt) >= 0 ? 'profit-positive' : 'profit-negative'}">${toNum(cash.lspft_amt).toLocaleString()} 원</td></tr>
+                                <tr><td class="label-text">당일 실현손익:</td><td class="${toNum(cash.tdy_lspft_amt) >= 0 ? 'profit-positive' : 'profit-negative'}">${toNum(cash.tdy_lspft_amt).toLocaleString()} 원</td></tr>
+                                <tr><td class="label-text">예수금 (추정):</td><td>${toNum(cash.prsm_dpst_aset_amt).toLocaleString()} 원</td></tr>
+                            </table>
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        `;
+        accountInfoDiv.innerHTML = html;
+    } catch (e) {
+        console.error('Failed to load account info:', e);
+        document.getElementById('accountInfo').innerHTML = `<p class="text-danger">계좌 정보를 불러오는 데 실패했습니다.</p>`;
+    }
+}\n
