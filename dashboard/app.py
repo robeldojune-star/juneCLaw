@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 import os
 from flask import Flask, jsonify, render_template, request
+from flask_socketio import SocketIO, emit
 import pandas as pd
 import sys
 from pathlib import Path
+import threading
+import time
+import json
 
 APP_ROOT = os.path.dirname(os.path.abspath(__file__))
 DATA_FILE = os.path.join(APP_ROOT, 'data', 'signals.csv')
@@ -17,6 +21,8 @@ from core.market_data_service import MarketDataService
 from dotenv import load_dotenv
 
 app = Flask(__name__)
+app.config['SECRET_KEY'] = 'secret!'
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 def load_environment(env_name: str):
     base_dir = Path(__file__).resolve().parents[1]
@@ -57,6 +63,28 @@ def get_account_info(env_name: str):
     except Exception as e:
         return {"error": str(e)}
 
+def background_thread():
+    """Background thread to send realtime updates via socketio."""
+    while True:
+        try:
+            # Fetch data
+            signals = load_signals().head(50)
+            # Convert time to ISO string for JSON serialization
+            signals['time'] = signals['time'].dt.strftime('%Y%m%d%H%M%S')
+            records = signals.to_dict(orient='records')
+            for record in records:
+                for k, v in record.items():
+                    if isinstance(v, float) and pd.isna(v):
+                        record[k] = None
+            # Mock account data (we can also fetch real but for simplicity use mock)
+            # In production we might want to fetch real account via env=mock or real
+            accountData = {"holdings": [], "cash": {}}
+            # Emit to all clients
+            socketio.emit('update', {"signals": records, "accountData": accountData})
+        except Exception as e:
+            print(f"Error in background thread: {e}")
+        socketio.sleep(30)  # send every 30 seconds
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -81,5 +109,19 @@ def api_account():
     data = get_account_info(env)
     return jsonify(data)
 
+@socketio.on('connect')
+def handle_connect():
+    print('Client connected')
+    # Optionally send current data immediately
+    pass
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    print('Client disconnected')
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    # Start background thread
+    thread = threading.Thread(target=background_thread)
+    thread.daemon = True
+    thread.start()
+    socketio.run(app, host='0.0.0.0', port=3000, debug=False)
