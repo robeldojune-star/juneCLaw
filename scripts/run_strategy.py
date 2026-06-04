@@ -28,8 +28,8 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Run RSI/CCI disparity strategy')
     parser.add_argument('--env', choices=['mock', 'prod'], required=True,
                         help='Environment to use (mock or prod)')
-    parser.add_argument('--stock', type=str, required=True,
-                        help='Stock code (6 digits, e.g., 042660)')
+    parser.add_argument('--stock', type=str, nargs='+', required=True,
+                        help='Stock code(s) (6 digits, e.g., 042660 005930)')
     parser.add_argument('--lookback', type=int, default=5,
                         help='Number of days to look back for warmup (default: 5)')
     parser.add_argument('--profit-target', type=float, default=1.5,
@@ -114,92 +114,73 @@ def main():
     args = parse_args()
     env_path = load_environment(args.env)
 
-    # Initialize Kiwoom client and market data service.
-    # Pass env_path explicitly: KiwoomAPIClient reads files directly and does not
-    # rely on variables loaded into os.environ by python-dotenv.
     client = KiwoomAPIClient.from_env(env_path=env_path)
     mkt = MarketDataService(client)
 
-    # We need to fetch data for enough days to have warmup for indicators (MA20 needs 20 periods).
-    # Since we are using minute data, we need at least 20 minutes of data.
-    # We'll fetch data for each date in the lookback window, but we also need previous days?
-    # For simplicity, we will fetch data for each date independently and compute indicators on that day's data only.
-    # This means the first 19 minutes of each day will have NaN for MA20 etc., which is fine.
-    # We'll iterate over each date in the range (excluding weekends).
-    end_date = datetime.now()
-    start_date = end_date - timedelta(days=args.lookback)
+    for stock in args.stock:
+        print(f"\n=== Stock: {stock} ===")
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=args.lookback)
 
-    current_date = start_date
-    while current_date <= end_date:
-        # Skip weekends (Saturday=5, Sunday=6)
-        if current_date.weekday() >= 5:
+        current_date = start_date
+        while current_date <= end_date:
+            if current_date.weekday() >= 5:
+                current_date += timedelta(days=1)
+                continue
+
+            date_str = current_date.strftime('%Y-%m-%d')
+            print(f"Processing date: {date_str}")
+            df = fetch_minute_data_for_date(client, mkt, stock, current_date)
+            if df.empty:
+                print(f"No data for {stock} on {date_str}")
+                current_date += timedelta(days=1)
+                continue
+
+            df = compute_indicators(df)
+            if args.profit_target and args.profit_target > 0:
+                df = generate_signals_profit_target(df, args.profit_target)
+            else:
+                df = generate_signals(df)
+
+            buy_signals = df['buy_signal'].sum()
+            sell_signals = df['sell_signal'].sum()
+            print(f"  Buy signals: {buy_signals}, Sell signals: {sell_signals}")
+
+            if args.execute and (buy_signals > 0 or sell_signals > 0):
+                print("  Executing orders...")
+                for idx, row in df.iterrows():
+                    if row['buy_signal']:
+                        price = int(row['close'])
+                        qty = args.quantity
+                        print(f"    BUY signal at {row['time']}: price={price}, qty={qty}")
+                        try:
+                            resp = place_market_order(client, stock, qty, is_buy=True, price=0)
+                            print(f"      Order response: {resp}")
+                            send_telegram(f"[{args.env.upper()}] BUY {stock} {qty} shares at market price ~{price} KRW")
+                            write_signal_to_csv(row['time'], stock, 'buy', price, "")
+                        except Exception as e:
+                            print(f"      Order failed: {e}")
+                    elif row['sell_signal']:
+                        price = int(row['close'])
+                        qty = args.quantity
+                        print(f"    SELL signal at {row['time']}: price={price}, qty={qty}")
+                        try:
+                            resp = place_market_order(client, stock, qty, is_buy=False, price=0)
+                            print(f"      Order response: {resp}")
+                            send_telegram(f"[{args.env.upper()}] SELL {stock} {qty} shares at market price ~{price} KRW")
+                            write_signal_to_csv(row['time'], stock, 'sell', price, "")
+                        except Exception as e:
+                            print(f"      Order failed: {e}")
+
+            elif not args.execute and (buy_signals > 0 or sell_signals > 0):
+                print("  Writing signals to CSV (dry-run)...")
+                for idx, row in df.iterrows():
+                    if row['buy_signal']:
+                        write_signal_to_csv(row['time'], stock, 'buy', abs(float(row['close'])), "")
+                    elif row['sell_signal']:
+                        write_signal_to_csv(row['time'], stock, 'sell', abs(float(row['close'])), "")
+
             current_date += timedelta(days=1)
-            continue
-
-        date_str = current_date.strftime('%Y-%m-%d')
-        print(f"Processing date: {date_str}")
-        df = fetch_minute_data_for_date(client, mkt, args.stock, current_date)
-        if df.empty:
-            print(f"No data for {args.stock} on {date_str}")
-            current_date += timedelta(days=1)
-            continue
-
-        # Compute indicators and generate signals
-        df = compute_indicators(df)
-        if args.profit_target and args.profit_target > 0:
-            df = generate_signals_profit_target(df, args.profit_target)
-        else:
-            df = generate_signals(df)
-
-        # Count signals
-        buy_signals = df['buy_signal'].sum()
-        sell_signals = df['sell_signal'].sum()
-        print(f"  Buy signals: {buy_signals}, Sell signals: {sell_signals}")
-
-        # If we have signals and we are executing, we can place orders.
-        # For simplicity, we will place an order at the close price of the signal bar.
-        # We'll iterate over the dataframe and for each signal, place an order.
-        if args.execute and (buy_signals > 0 or sell_signals > 0):
-            print("  Executing orders...")
-            for idx, row in df.iterrows():
-                if row['buy_signal']:
-                    price = int(row['close'])  # close price of the signal bar
-                    qty = args.quantity
-                    print(f"    BUY signal at {row['time']}: price={price}, qty={qty}")
-                    try:
-                        resp = place_market_order(client, args.stock, qty, is_buy=True, price=0)  # price=0 for market order
-                        print(f"      Order response: {resp}")
-                        # Send telegram notification
-                        send_telegram(f"[{args.env.upper()}] BUY {args.stock} {qty} shares at market price ~{price} KRW")
-                        # Write signal to CSV for dashboard
-                        write_signal_to_csv(row['time'], args.stock, 'buy', price, "")
-                    except Exception as e:
-                        print(f"      Order failed: {e}")
-                elif row['sell_signal']:
-                    price = int(row['close'])
-                    qty = args.quantity
-                    print(f"    SELL signal at {row['time']}: price={price}, qty={qty}")
-                    try:
-                        resp = place_market_order(client, args.stock, qty, is_buy=False, price=0)
-                        print(f"      Order response: {resp}")
-                        send_telegram(f"[{args.env.upper()}] SELL {args.stock} {qty} shares at market price ~{price} KRW")
-                        # Write signal to CSV for dashboard
-                        write_signal_to_csv(row['time'], args.stock, 'sell', price, "")
-                    except Exception as e:
-                        print(f"      Order failed: {e}")
-
-        # If not executing, just write signals to CSV for dashboard (no telegram summary for the day? Actually we can still write)
-        elif not args.execute and (buy_signals > 0 or sell_signals > 0):
-            print("  Writing signals to CSV (dry-run)...")
-            for idx, row in df.iterrows():
-                if row['buy_signal']:
-                    price = int(row['close'])
-                    write_signal_to_csv(row['time'], args.stock, 'buy', price, "")
-                elif row['sell_signal']:
-                    price = int(row['close'])
-                    write_signal_to_csv(row['time'], args.stock, 'sell', price, "")
-
-        current_date += timedelta(days=1)
 
     print("Strategy run completed.")
 
