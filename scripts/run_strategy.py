@@ -16,7 +16,7 @@ import pandas as pd
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from shared.strategy import compute_indicators, generate_signals
+from shared.strategy import compute_indicators, generate_signals, generate_signals_profit_target
 from shared.order import place_market_order, get_available_cash
 from shared.notify import send_telegram
 from core.kiwoom_client import KiwoomAPIClient
@@ -146,7 +146,10 @@ def main():
 
         # Compute indicators and generate signals
         df = compute_indicators(df)
-        df = generate_signals(df)
+        if args.profit_target and args.profit_target > 0:
+            df = generate_signals_profit_target(df, args.profit_target)
+        else:
+            df = generate_signals(df)
 
         # Count signals
         buy_signals = df['buy_signal'].sum()

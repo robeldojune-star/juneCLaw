@@ -45,6 +45,37 @@ def compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
     
     return df
 
+def generate_signals_profit_target(df: pd.DataFrame, profit_target_pct: float = 1.5) -> pd.DataFrame:
+    """Generate buy signals only (same entry as generate_signals).
+    Sell signal is triggered when price reaches +profit_target_pct% from buy entry.
+    RSI-based exits are disabled for this variant.
+    """
+    df = df.copy()
+    # Buy signal raw
+    df['buy_signal_raw'] = (
+        (df['disparity20'] <= 100) &
+        (df['cci'].shift(1) <= -100) &
+        (df['cci'] > -100) &
+        (df['volume'] >= df['vol_ma20'])
+    )
+    df['buy_signal'] = df['buy_signal_raw'] & (~df['buy_signal_raw'].shift(1).fillna(False))
+
+    # Profit-target sell: track buy price and fire sell when close >= buy * (1 + pt/100)
+    buy_price = None
+    sell_signal = pd.Series(False, index=df.index)
+    for i, (idx, row) in enumerate(df.iterrows()):
+        if df.at[idx, 'buy_signal']:
+            buy_price = row['close']
+        if buy_price is not None:
+            target = buy_price * (1 + profit_target_pct / 100)
+            if row['high'] >= target:
+                sell_signal.at[idx] = True
+                buy_price = None
+    df['sell_signal_raw'] = sell_signal
+    df['sell_signal'] = df['sell_signal_raw'] & (~df['sell_signal_raw'].shift(1).fillna(False))
+    return df
+
+
 def generate_signals(df: pd.DataFrame) -> pd.DataFrame:
     """
     Generate buy and sell signals based on computed indicators.

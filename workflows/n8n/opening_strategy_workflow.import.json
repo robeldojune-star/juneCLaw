@@ -1,0 +1,119 @@
+{
+  "name": "Opening Strategy Research",
+  "nodes": [
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [{"hour": 9, "minute": 10}]
+        }
+      },
+      "id": "cron-0910",
+      "name": "Cron 09:10 KST",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Smoke test Kiwoom intraday\nconst { execSync } = require(\"child_process\");\ntry {\n  const result = execSync(\"cd /home/june/trading && python3 scripts/smoke_test_kiwoom_intraday_api.py 005930\", { encoding: \"utf-8\", timeout: 30000 });\n  try {\n    return JSON.parse(result.trim() || \"{}\");\n  } catch {\n    return { stdout: result.trim(), ok: true };\n  }\n} catch (e) {\n  return { error: e.message, ok: false };\n}"
+      },
+      "id": "smoke-test",
+      "name": "Smoke Test Kiwoom Intraday",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-ok",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": true,
+              "operator": {"type": "boolean", "operation": "equals"}
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "if-kiwoom-ok",
+      "name": "IF Kiwoom OK",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Run opening strategy research\nconst { execSync } = require(\"child_process\");\ntry {\n  const result = execSync(\"cd /home/june/trading && python3 scripts/run_opening_strategy_research.py --stock-code 005930\", { encoding: \"utf-8\", timeout: 120000 });\n  try {\n    return JSON.parse(result.trim() || \"{}\");\n  } catch {\n    return { stdout: result.trim(), ok: true };\n  }\n} catch (e) {\n  return { error: e.message, ok: false };\n}"
+      },
+      "id": "run-research",
+      "name": "Run Opening Strategy Research",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-score",
+              "leftValue": "={{ $json.score }}",
+              "rightValue": 70,
+              "operator": {"type": "number", "operation": "largerEqual"}
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "if-buy-candidate",
+      "name": "IF BUY Candidate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "content": "## Opening Strategy Signal\n\nStock: {{ $json.stock_code }}\nSignal: {{ $json.signal_type }}\nScore: {{ $json.score }}\nBlocks: {{ $json.blocking_conditions }}\n\n⚠️ 알림 전용 — 주문 실행 안 함",
+        "height": 200,
+        "width": 400
+      },
+      "id": "sticky-summary",
+      "name": "Notify Summary",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    }
+  ],
+  "connections": {
+    "Cron 09:10 KST": {"main": [[{"node": "Smoke Test Kiwoom Intraday", "type": "main", "index": 0}]]},
+    "Smoke Test Kiwoom Intraday": {"main": [[{"node": "IF Kiwoom OK", "type": "main", "index": 0}]]},
+    "IF Kiwoom OK": {"main": [
+      [{"node": "Run Opening Strategy Research", "type": "main", "index": 0}],
+      [{"node": "Notify Summary", "type": "main", "index": 0}]
+    ]},
+    "Run Opening Strategy Research": {"main": [[{"node": "IF BUY Candidate", "type": "main", "index": 0}]]},
+    "IF BUY Candidate": {"main": [
+      [{"node": "Notify Summary", "type": "main", "index": 0}],
+      []
+    ]}
+  },
+  "settings": {"executionOrder": "v1"},
+  "staticData": null,
+  "pinData": {},
+  "meta": {"templateCredsSetupCompleted": false},
+  "active": false,
+  "versionId": "import-001",
+  "id": "opening-strategy-research"
+}
