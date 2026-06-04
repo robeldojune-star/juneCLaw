@@ -60,3 +60,16 @@ supabase/.temp/
 Thumbs.db
 .vscode/
 .idea/
+
+# Temp / debug scripts
+tmp_*.py
+
+# Local cron files
+crontab.txt
+hermes_cron.txt
+
+# Hermes runtime data (never commit)
+hermes/
+
+# Dash-kiwoom runtime data
+dash-kiwoom/data/*.csv

@@ -170,6 +170,61 @@ BACKTEST_REPORT_FILE = PROJECT_ROOT / "docs" / "strategies" / "ka10080_minute_ba
 SNAPSHOT_SOURCE = "kiwoom_ka10006_snapshot"
 SNAPSHOT_TIME_FRAME = "snapshot_1m"
 
+# ── Stock code → name lookup (built-in + lazily extended from Kiwoom) ──────────
+STOCK_NAME_MAP: dict[str, str] = {
+    "005930": "삼성전자",
+    "000660": "SK하이닉스",
+    "035420": "네이버",
+    "005380": "현대차",
+    "068270": "셀트리온",
+    "009150": "삼성전기",
+    "373220": "LG에너지솔루션",
+    "402340": "SK스퀘어",
+    "034020": "두산에너빌리티",
+    "042660": "KODEX 2차전지산업",
+    "207940": "삼성바이오로직스",
+    "005490": "POSCO홀딩스",
+    "012330": "현대모비스",
+    "035720": "카카오",
+    "051910": "LG화학",
+    "066570": "LG전자",
+    "086790": "하나금융지주",
+    "105560": "KB금융",
+    "055550": "신한지주",
+    "032830": "삼성생명",
+    "005935": "삼성전자우",
+    "000270": "기아",
+    "011200": "HMM",
+    "028260": "삼성물산",
+    "036570": "엔씨소프트",
+    "086520": "에코프로",
+    "247540": "에코프로비엠",
+    "352820": "하이브",
+    "035250": "강원랜드",
+    "018260": "삼성에스디에스",
+    "017670": "SK텔레콤",
+    "030200": "카카오뱅크",
+    "096770": "SK이노베이션",
+    "010950": "S-Oil",
+    "010130": "고려아연",
+    "004020": "현대제철",
+    "011170": "롯데케미칼",
+    "034730": "SK",
+    "006400": "삼성SDI",
+    "015760": "한국전력",
+    "003550": "LG",
+    "267260": "현대일렉트릭",
+    "009540": "한국조선해양",
+    "033780": "KT&G",
+}
+
+
+def resolve_stock_name(code: str) -> str:
+    """Return '종목명(CODE)' if known, otherwise just the code."""
+    code = str(code).strip().zfill(6)
+    name = STOCK_NAME_MAP.get(code)
+    return f"{name}({code})" if name else code
+
 
 def load_environment(env_name: str) -> Path:
     """Load mock/prod environment file without mixing credentials."""
@@ -232,6 +287,7 @@ def serialize_signals(df: pd.DataFrame, limit: int = 50) -> list[dict[str, Any]]
                 row[key] = None
             if isinstance(value, pd.Timestamp):
                 row[key] = value.isoformat()
+        row["stock_name"] = resolve_stock_name(str(row.get("stock", "")))
         records.append(row)
     return records
 
@@ -247,9 +303,11 @@ def calculate_signal_metrics(df: pd.DataFrame) -> dict[str, Any]:
     latest = None
     if not df.empty:
         latest_row = df.iloc[0]
+        latest_stock = str(latest_row["stock"])
         latest = {
             "time": latest_row["parsed_time"].strftime("%Y-%m-%d %H:%M:%S"),
-            "stock": latest_row["stock"],
+            "stock": latest_stock,
+            "stock_name": resolve_stock_name(latest_stock),
             "type": latest_row["type"],
             "price": float(latest_row["price"]) if pd.notna(latest_row["price"]) else None,
         }
@@ -548,6 +606,7 @@ def build_snapshot_chart_data(preferred_stock: str = "042660", *, limit: int = 1
             data = {
                 "env": "supabase",
                 "stock": selected_stock,
+                "stock_name": resolve_stock_name(selected_stock),
                 "requestedStock": preferred_stock,
                 "source": "Supabase intraday_prices · ka10006 snapshot_1m",
                 "candles": candles,
@@ -565,6 +624,7 @@ def build_snapshot_chart_data(preferred_stock: str = "042660", *, limit: int = 1
             data = {
                 "env": "supabase",
                 "stock": preferred_stock,
+                "stock_name": resolve_stock_name(preferred_stock),
                 "source": "Supabase intraday_prices · ka10006 snapshot_1m",
                 "candles": [],
                 "count": 0,
@@ -800,10 +860,12 @@ def build_paper_simulation_preview(signals_df: pd.DataFrame, limit: int = 5) -> 
                 preview_time = pd.Timestamp(ts).strftime("%Y%m%d%H%M%S")
             except Exception:
                 pass
+        stock_code = str(getattr(row, "stock", "")).zfill(6)
         preview.append({
             "time": preview_time,
             "env": "paper-sim",
-            "stock": str(getattr(row, "stock", "")).zfill(6),
+            "stock": stock_code,
+            "stock_name": resolve_stock_name(stock_code),
             "side": side,
             "qty": qty,
             "price": round(abs(float(price)), 2),
@@ -826,6 +888,8 @@ def load_paper_ledger(signals_df: pd.DataFrame | None = None, limit: int = 50) -
     ensure_paper_ledger()
     df = pd.read_csv(PAPER_LEDGER_FILE)
     rows = df.tail(limit).iloc[::-1].to_dict(orient="records") if not df.empty else []
+    for row in rows:
+        row["stock_name"] = resolve_stock_name(str(row.get("stock", "")))
     preview = build_paper_simulation_preview(signals_df, limit=5) if signals_df is not None else []
     return {
         "path": str(PAPER_LEDGER_FILE),

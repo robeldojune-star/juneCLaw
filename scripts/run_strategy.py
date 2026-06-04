@@ -41,7 +41,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def load_environment(env_name: str):
+def load_environment(env_name: str) -> Path:
     """Load the appropriate .env file and set TRADING_ENV."""
     env_path = PROJECT_ROOT / 'envs' / env_name / '.env'
     if not env_path.exists():
@@ -49,6 +49,7 @@ def load_environment(env_name: str):
     load_dotenv(dotenv_path=env_path, override=True)
     os.environ['TRADING_ENV'] = env_name
     print(f"Loaded environment: {env_name} from {env_path}")
+    return env_path
 
 
 def fetch_minute_data_for_date(client: KiwoomAPIClient, mkt: MarketDataService,
@@ -111,10 +112,12 @@ def write_signal_to_csv(signal_time: str, stock_code: str, signal_type: str, pri
 
 def main():
     args = parse_args()
-    load_environment(args.env)
+    env_path = load_environment(args.env)
 
-    # Initialize Kiwoom client and market data service
-    client = KiwoomAPIClient.from_env()
+    # Initialize Kiwoom client and market data service.
+    # Pass env_path explicitly: KiwoomAPIClient reads files directly and does not
+    # rely on variables loaded into os.environ by python-dotenv.
+    client = KiwoomAPIClient.from_env(env_path=env_path)
     mkt = MarketDataService(client)
 
     # We need to fetch data for enough days to have warmup for indicators (MA20 needs 20 periods).

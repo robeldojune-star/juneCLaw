@@ -1,0 +1,25 @@
+{
+  "strategy": "fujimoto_126_custom_swing",
+  "parameters": {
+    "stop_loss_pct": -1.0,
+    "take_profit_pct": 3.0,
+    "take_profit_half_pct": 5.0,
+    "max_holding_days": 3,
+    "fee_bps": 23,
+    "slippage_bps": 10,
+    "min_score": 60,
+    "reentry_enabled": true,
+    "reentry_rule": "price_above_original_entry",
+    "reentry_params": {}
+  },
+  "universe": "KOSPI_TOP_50",
+  "date_range": {
+    "start": "2026-05-01",
+    "end": "2026-05-31"
+  },
+  "output": {
+    "save_detailed_results": true,
+    "generate_charts": false,
+    "chart_format": "svg"
+  }
+}
