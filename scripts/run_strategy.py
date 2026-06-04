@@ -1,214 +1,202 @@
 #!/usr/bin/env python3
 """
-Unified strategy runner.
-Usage:
-    python3 scripts/run_strategy.py --env mock|prod [--stock 042660] [--lookback 5] [--profit-target 1.5] [--execute]
+Unified runner for RSI/CCI disparity strategy with mock/prod separation.
+Fetches minute data via Kiwoom API and generates signals per minute.
+Writes signals to a CSV file for the dashboard.
 """
-
-import sys
-import os
 import argparse
+import os
+import sys
+from datetime import datetime, timedelta
 from pathlib import Path
+
 import pandas as pd
-import numpy as np
-from datetime import datetime
 
-# Ensure we can import shared modules
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "shared"))
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+# Add the project root to sys.path so we can import shared modules
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
 
-from strategy import compute_indicators, generate_signals
-from order import place_market_order, get_available_cash
-from notify import send_telegram
-
-# Kiwoom client
+from shared.strategy import compute_indicators, generate_signals
+from shared.order import place_market_order, get_available_cash
+from shared.notify import send_telegram
 from core.kiwoom_client import KiwoomAPIClient
 from core.market_data_service import MarketDataService
 from dotenv import load_dotenv
-from datetime import datetime, timedelta
 
-def log_signal(stock, sig_type, price, profit=None):
-    """Append a signal/trade to the shared signals CSV for the dashboard."""
-    dashboard_dir = Path(__file__).resolve().parents[1] / "dashboard"
-    data_dir = dashboard_dir / "data"
-    data_dir.mkdir(parents=True, exist_ok=True)
-    signal_file = data_dir / "signals.csv"
-    df = pd.DataFrame([{
-        'time': datetime.now().strftime('%Y%m%d%H%M%S'),
-        'stock': stock,
-        'type': sig_type,   # 'BUY' or 'SELL'
-        'price': price,
-        'profit': profit
-    }])
-    header = not signal_file.exists()
-    df.to_csv(signal_file, mode='a', header=header, index=False)
+
+def parse_args():
+    parser = argparse.ArgumentParser(description='Run RSI/CCI disparity strategy')
+    parser.add_argument('--env', choices=['mock', 'prod'], required=True,
+                        help='Environment to use (mock or prod)')
+    parser.add_argument('--stock', type=str, required=True,
+                        help='Stock code (6 digits, e.g., 042660)')
+    parser.add_argument('--lookback', type=int, default=5,
+                        help='Number of days to look back for warmup (default: 5)')
+    parser.add_argument('--profit-target', type=float, default=1.5,
+                        help='Profit target percentage for optional exit (default: 1.5%)')
+    parser.add_argument('--execute', action='store_true',
+                        help='If set, place real orders; otherwise dry-run')
+    parser.add_argument('--quantity', type=int, default=1,
+                        help='Order quantity (default: 1)')
+    return parser.parse_args()
+
 
 def load_environment(env_name: str):
-    """Load the appropriate .env file based on env_name (mock or prod)."""
-    base_dir = Path(__file__).resolve().parents[1]
-    env_path = base_dir / "envs" / env_name / ".env"
+    """Load the appropriate .env file and set TRADING_ENV."""
+    env_path = PROJECT_ROOT / 'envs' / env_name / '.env'
     if not env_path.exists():
         raise FileNotFoundError(f"Environment file not found: {env_path}")
     load_dotenv(dotenv_path=env_path, override=True)
-    # Also set TRADING_ENV if not already in file
-    os.environ["TRADING_ENV"] = env_name
-    print(f"Loaded environment from: {env_path}")
+    os.environ['TRADING_ENV'] = env_name
+    print(f"Loaded environment: {env_name} from {env_path}")
 
-def fetch_minute_data(client: KiwoomAPIClient, mkt: MarketDataService, stock_code: str, target_date_str: str, lookback_days: int) -> pd.DataFrame:
+
+def fetch_minute_data_for_date(client: KiwoomAPIClient, mkt: MarketDataService,
+                               stock_code: str, date: datetime) -> pd.DataFrame:
     """
-    Fetch minute data for target_date_str, including previous day for warmup.
-    Returns DataFrame with columns: time, open, high, low, close, volume.
+    Fetch 1-minute bar data for a given stock and date (Korean market hours).
+    Uses ka10080 with base_dt=date (YYYYMMDD) and tic_scope='1'.
+    Returns a DataFrame with columns: ['open','high','low','close','volume']
+    and index as the time string (HHMMSS) or we can keep as column.
     """
-    target_dt = datetime.strptime(target_date_str, "%Y%m%d")
-    prev_dt = target_dt - timedelta(days=1)
-    prev_date_str = prev_dt.strftime("%Y%m%d")
-    
-    bars_target = mkt.get_minute_chart_raw(stock_code, base_dt=target_date_str, minute_scope='1', adjusted_price=True)
-    bars_prev = mkt.get_minute_chart_raw(stock_code, base_dt=prev_date_str, minute_scope='1', adjusted_price=True) if prev_dt >= datetime(2020,1,1) else []
-    
-    bars_all = (bars_prev or []) + (bars_target or [])
-    if not bars_all:
+    base_dt = date.strftime('%Y%m%d')
+    try:
+        raw = mkt.get_minute_chart_raw(stock_code, base_dt=base_dt, minute_scope='1', adjusted_price=True)
+    except Exception as e:
+        print(f"Error fetching minute data for {stock_code} on {date.date()}: {e}")
         return pd.DataFrame()
-    
-    df = pd.DataFrame(bars_all)
-    df = df.rename(columns={
-        'cntr_tm': 'time',
+    if not raw:
+        print(f"No minute data returned for {stock_code} on {date.date()}")
+        return pd.DataFrame()
+    # Convert to DataFrame
+    df = pd.DataFrame(raw)
+    # Expected keys: 'cntr_tm', 'open_pric', 'high_pric', 'low_pric', 'cur_prc', 'trde_qty'
+    # Note: 'cur_prc' is the closing price for the minute bar.
+    df.rename(columns={
         'open_pric': 'open',
         'high_pric': 'high',
         'low_pric': 'low',
-        'cur_prc': 'close',
+        'cur_prc': 'close',   # current price = close for the minute
         'trde_qty': 'volume'
-    })
-    df = df[['time','open','high','low','close','volume']]
-    for col in ['open','high','low','close','volume']:
+    }, inplace=True)
+    # Ensure numeric
+    for col in ['open', 'high', 'low', 'close', 'volume']:
         df[col] = pd.to_numeric(df[col], errors='coerce')
-    df['time'] = pd.to_datetime(df['time'], format='%Y%m%d%H%M%S')
+    # We'll keep the time column as 'time' (string HHMMSS)
+    df.rename(columns={'cntr_tm': 'time'}, inplace=True)
+    # Sort by time ascending
     df = df.sort_values('time').reset_index(drop=True)
     return df
 
-def process_day(client: KiwoomAPIClient, mkt: MarketDataService, stock_code: str, target_date_str: str, 
-                profit_target: float, execute: bool, quantity: int) -> list:
+
+def write_signal_to_csv(signal_time: str, stock_code: str, signal_type: str, price: float, profit: str = ""):
     """
-    Process a single day: generate signals, simulate or execute trades.
-    Returns list of trade dicts for the day.
+    Write a signal to the CSV file for the dashboard.
+    CSV file: /home/june/trading/dash-kiwoom/data/signals.csv
+    Columns: time, stock, type, price, profit
     """
-    df = fetch_minute_data(client, mkt, stock_code, target_date_str, lookback_days=5)  # lookback handled inside fetch
-    if df.empty:
-        print(f"No data for {target_date_str}")
-        return []
-    
-    df = compute_indicators(df)
-    df = generate_signals(df)
-    
-    # Filter to target date only (remove previous day warmup rows)
-    target_date = datetime.strptime(target_date_str, "%Y%m%d").date()
-    df_target = df[df['time'].dt.date == target_date]
-    
-    trades = []
-    in_position = False
-    entry_price = None
-    entry_time = None
-    
-    for idx, row in df_target.iterrows():
-        if row['buy_signal'] and not in_position:
-            in_position = True
-            entry_price = row['close']
-            entry_time = row['time']
-            print(f"[{target_date_str}] BUY signal at {entry_time} price {entry_price:.0f}")
-            if execute:
-                # Determine quantity: use all available cash or fixed?
-                # For simplicity, use fixed quantity param
-                qty = quantity
-                # Optionally check cash
-                cash = get_available_cash(client)
-                if cash is not None:
-                    # Assume price ~ close, lots of 1 share? We'll just use quantity param
-                    pass
-                resp = place_market_order(client, stock_code, qty, is_buy=True)
-                # Could extract order number etc.
-                send_telegram(f"BUY {stock_code} qty={qty} at market")
-                log_signal(stock_code, 'BUY', entry_price)
-            else:
-                log_signal(stock_code, 'BUY', entry_price)
-        elif in_position:
-            # Check profit target
-            profit_pct = (row['close'] - entry_price) / entry_price * 100.0
-            if profit_pct >= profit_target:
-                # Sell
-                exit_price = row['close']
-                exit_time = row['time']
-                print(f"[{target_date_str}] SELL signal (target reached) at {exit_time} price {exit_price:.0f} profit {profit_pct:.2f}%")
-                trades.append({
-                    'date': target_date_str,
-                    'entry_time': entry_time,
-                    'entry_price': entry_price,
-                    'exit_time': exit_time,
-                    'exit_price': exit_price,
-                    'profit_pct': profit_pct
-                })
-                if execute:
-                    qty = quantity  # same quantity
-                    resp = place_market_order(client, stock_code, qty, is_buy=False)
-                    send_telegram(f"SELL {stock_code} qty={qty} at market profit {profit_pct:.2f}%")
-                in_position = False
-                entry_price = None
-                entry_time = None
-                log_signal(stock_code, 'SELL', exit_price, profit_pct)
-            # optional: could also add stop loss logic here
-    # If position remains open at end of day, we could close at market close, but we ignore for now.
-    return trades
+    csv_path = PROJECT_ROOT / 'dash-kiwoom' / 'data' / 'signals.csv'
+    # Ensure the directory exists
+    csv_path.parent.mkdir(parents=True, exist_ok=True)
+    # Prepare the row
+    row = f"{signal_time},{stock_code},{signal_type},{price},{profit}\n"
+    # If file doesn't exist, write header
+    if not csv_path.exists():
+        with open(csv_path, 'w') as f:
+            f.write("time,stock,type,price,profit\n")
+    # Append the row
+    with open(csv_path, 'a') as f:
+        f.write(row)
+
 
 def main():
-    parser = argparse.ArgumentParser(description='Run RSI/CCI disparity strategy with optional order execution.')
-    parser.add_argument('--env', choices=['mock','prod'], required=True, help='Environment to use (mock or prod)')
-    parser.add_argument('--stock', type=str, default='042660', help='Stock 6-digit code')
-    parser.add_argument('--lookback', type=int, default=5, help='Number of lookback days for warmup')
-    parser.add_argument('--profit-target', type=float, default=1.5, help='Target profit percent for exit')
-    parser.add_argument('--execute', action='store_true', help='If set, place real orders; otherwise dry-run only')
-    parser.add_argument('--quantity', type=int, default=1, help='Order quantity (shares)')
-    args = parser.parse_args()
-    
-    # Load environment
-    try:
-        load_environment(args.env)
-    except Exception as e:
-        print(f"Failed to load environment: {e}")
-        sys.exit(1)
-    
+    args = parse_args()
+    load_environment(args.env)
+
     # Initialize Kiwoom client and market data service
-    try:
-        client = KiwoomAPIClient.from_env()
-        mkt = MarketDataService(client)
-        print(f"Kiwoom client initialized for env: {os.getenv('TRADING_ENV')}")
-    except Exception as e:
-        print(f"Failed to initialize Kiwoom client: {e}")
-        sys.exit(1)
-    
-    # Determine date range: we will process recent N days (lookback days) ending today.
-    # For simplicity, we process the last N trading days (excluding weekends) but we will just iterate over calendar days and skip if no data.
-    end_date = datetime.now().date()
-    start_date = end_date - timedelta(days=args.lookback*2)  # rough buffer to capture enough trading days
-    
-    all_trades = []
-    current = start_date
-    while current <= end_date:
-        date_str = current.strftime("%Y%m%d")
-        # Skip weekends? Kiwoom will return empty data, we just process.
-        trades = process_day(client, mkt, args.stock, date_str, args.profit_target, args.execute, args.quantity)
-        all_trades.extend(trades)
-        current += timedelta(days=1)
-    
-    print("\n=== Summary ===")
-    print(f"Total trades executed/simulated: {len(all_trades)}")
-    if all_trades:
-        profits = [t['profit_pct'] for t in all_trades]
-        win_rate = sum(1 for p in profits if p > 0) / len(profits) * 100
-        avg_profit = np.mean(profits)
-        print(f"Win rate: {win_rate:.2f}%")
-        print(f"Average profit per trade: {avg_profit:.2f}%")
-        print(f"Profits: {[round(p,2) for p in profits]}")
-    else:
-        print("No trades.")
-    
-if __name__ == "__main__":
+    client = KiwoomAPIClient.from_env()
+    mkt = MarketDataService(client)
+
+    # We need to fetch data for enough days to have warmup for indicators (MA20 needs 20 periods).
+    # Since we are using minute data, we need at least 20 minutes of data.
+    # We'll fetch data for each date in the lookback window, but we also need previous days?
+    # For simplicity, we will fetch data for each date independently and compute indicators on that day's data only.
+    # This means the first 19 minutes of each day will have NaN for MA20 etc., which is fine.
+    # We'll iterate over each date in the range (excluding weekends).
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=args.lookback)
+
+    current_date = start_date
+    while current_date <= end_date:
+        # Skip weekends (Saturday=5, Sunday=6)
+        if current_date.weekday() >= 5:
+            current_date += timedelta(days=1)
+            continue
+
+        date_str = current_date.strftime('%Y-%m-%d')
+        print(f"Processing date: {date_str}")
+        df = fetch_minute_data_for_date(client, mkt, args.stock, current_date)
+        if df.empty:
+            print(f"No data for {args.stock} on {date_str}")
+            current_date += timedelta(days=1)
+            continue
+
+        # Compute indicators and generate signals
+        df = compute_indicators(df)
+        df = generate_signals(df)
+
+        # Count signals
+        buy_signals = df['buy_signal'].sum()
+        sell_signals = df['sell_signal'].sum()
+        print(f"  Buy signals: {buy_signals}, Sell signals: {sell_signals}")
+
+        # If we have signals and we are executing, we can place orders.
+        # For simplicity, we will place an order at the close price of the signal bar.
+        # We'll iterate over the dataframe and for each signal, place an order.
+        if args.execute and (buy_signals > 0 or sell_signals > 0):
+            print("  Executing orders...")
+            for idx, row in df.iterrows():
+                if row['buy_signal']:
+                    price = int(row['close'])  # close price of the signal bar
+                    qty = args.quantity
+                    print(f"    BUY signal at {row['time']}: price={price}, qty={qty}")
+                    try:
+                        resp = place_market_order(client, args.stock, qty, is_buy=True, price=0)  # price=0 for market order
+                        print(f"      Order response: {resp}")
+                        # Send telegram notification
+                        send_telegram(f"[{args.env.upper()}] BUY {args.stock} {qty} shares at market price ~{price} KRW")
+                        # Write signal to CSV for dashboard
+                        write_signal_to_csv(row['time'], args.stock, 'buy', price, "")
+                    except Exception as e:
+                        print(f"      Order failed: {e}")
+                elif row['sell_signal']:
+                    price = int(row['close'])
+                    qty = args.quantity
+                    print(f"    SELL signal at {row['time']}: price={price}, qty={qty}")
+                    try:
+                        resp = place_market_order(client, args.stock, qty, is_buy=False, price=0)
+                        print(f"      Order response: {resp}")
+                        send_telegram(f"[{args.env.upper()}] SELL {args.stock} {qty} shares at market price ~{price} KRW")
+                        # Write signal to CSV for dashboard
+                        write_signal_to_csv(row['time'], args.stock, 'sell', price, "")
+                    except Exception as e:
+                        print(f"      Order failed: {e}")
+
+        # If not executing, just write signals to CSV for dashboard (no telegram summary for the day? Actually we can still write)
+        elif not args.execute and (buy_signals > 0 or sell_signals > 0):
+            print("  Writing signals to CSV (dry-run)...")
+            for idx, row in df.iterrows():
+                if row['buy_signal']:
+                    price = int(row['close'])
+                    write_signal_to_csv(row['time'], args.stock, 'buy', price, "")
+                elif row['sell_signal']:
+                    price = int(row['close'])
+                    write_signal_to_csv(row['time'], args.stock, 'sell', price, "")
+
+        current_date += timedelta(days=1)
+
+    print("Strategy run completed.")
+
+
+if __name__ == '__main__':
     main()

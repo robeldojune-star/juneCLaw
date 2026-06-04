@@ -1,0 +1,185 @@
+/* Custom styles for RSI/CCI Dashboard */
+
+/* Dark theme variables */
+:root {
+    --bs-primary: #0d6efd;
+    --bs-secondary: #6c757d;
+    --bs-success: #198754;
+    --bs-info: #0dcaf0;
+    --bs-warning: #ffc107;
+    --bs-danger: #dc3545;
+    --bs-light: #f8f9fa;
+    --bs-dark: #212529;
+    --bs-gray: #6c757d;
+    --bs-gray-dark: #343a40;
+    --bs-primary-rgb: 13,110,253;
+    --bs-secondary-rgb: 108,117,125;
+    --bs-success-rgb: 25,135,84;
+    --bs-info-rgb: 13,202,240;
+    --bs-warning-rgb: 255,193,7;
+    --bs-danger-rgb: 220,53,69;
+    --bs-light-rgb: 248,249,250;
+    --bs-dark-rgb: 33,37,41;
+    --bs-white-rgb: 255,255,255;
+    --bs-black-rgb: 0,0,0;
+    --bs-body-color-rgb: 33,37,41;
+    --bs-body-bg-rgb: 248,249,250;
+    --bs-font-sans-serif: system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans",sans-serif,"Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol","Noto Color Emoji";
+    --bs-font-monospace: SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
+    --bs-gradient: linear-gradient(180deg, rgba(255,255,255,.15), rgba(255,255,255,0));
+}
+
+/* Dark mode preference */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bs-body-color-rgb: 210,215,211;
+        --bs-body-bg-rgb: 33,37,41;
+        --bs-border-color-translucent: rgba(255,255,255,.15);
+    }
+}
+
+body {
+    background-color: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    font-family: var(--bs-font-sans-serif);
+}
+
+/* Navbar */
+.navbar-dark {
+    background-color: var(--bs-dark) !important;
+}
+
+/* Card enhancements */
+.card {
+    border: none;
+    border-radius: .75rem;
+    box-shadow: 0 .125rem .25rem rgba(var(--bs-body-color-rgb),.075)!important;
+    transition: transform .15s ease-in-out, box-shadow .15s ease-in-out;
+}
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 .25rem .5rem rgba(var(--bs-body-color-rgb),.15)!important;
+}
+.card-header {
+    padding: 1rem 1.5rem;
+    background-color: var(--bs-light);
+    border-bottom: 1px solid var(--bs-border-color);
+    font-weight: 600;
+}
+.card-body {
+    padding: 1.5rem;
+}
+
+/* Table enhancements */
+.table {
+    --bs-table-bg: transparent;
+    --bs-table-striped-color: var(--bs-body-color);
+    --bs-table-striped-bg: rgba(var(--bs-body-color-rgb),.05);
+    --bs-table-active-color: var(--bs-body-color);
+    --bs-table-active-bg: rgba(var(--bs-body-color-rgb),.1);
+    --bs-table-hover-color: var(--bs-body-color);
+    --bs-table-hover-bg: rgba(var(--bs-body-color-rgb),.075);
+    border-color: var(--bs-border-color);
+}
+.table th {
+    background-color: var(--bs-light);
+    border-bottom: 2px solid var(--bs-border-color);
+    font-size: .875rem;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+}
+.table td {
+    vertical-align: middle;
+    font-size: .875rem;
+}
+.table tbody tr:hover {
+    background-color: rgba(var(--bs-body-color-rgb),.025);
+}
+
+/* Buttons */
+.btn {
+    border-radius: .5rem;
+    font-weight: 500;
+    transition: all .15s ease-in-out;
+}
+.btn-sm {
+    padding: .25rem .75rem;
+    font-size: .875rem;
+}
+.btn-outline-primary {
+    --bs-btn-border-color: var(--bs-primary);
+    --bs-btn-hover-bg: var(--bs-primary);
+    --bs-btn-hover-border-color: var(--bs-primary);
+    --bs-btn-hover-color: var(--bs-white);
+}
+
+/* Alerts */
+.alert {
+    border-radius: .5rem;
+    border: none;
+    font-weight: 500;
+}
+
+/* Chart container */
+.chart-container {
+    position: relative;
+    height: 80vh;
+    max-height: 500px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .container {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+    .card-body {
+        padding: 1rem;
+    }
+}
+
+/* Animation for loading */
+@keyframes pulse {
+    0% { opacity: .6; }
+    50% { opacity: 1; }
+    100% { opacity: .6; }
+}
+.loading {
+    animation: pulse 1.5s infinite ease-in-out;
+}
+
+/* Badge enhancements */
+.badge {
+    font-weight: 500;
+    padding: .5em .75em;
+    border-radius: .5rem;
+}
+
+/* Custom colors for profit/loss */
+.profit-positive {
+    color: var(--bs-success) !important;
+}
+.profit-negative {
+    color: var(--bs-danger) !important;
+}
+
+/* Icon sizes */
+.bi {
+    vertical-align: text-bottom;
+}
+.bi-lg {
+    font-size: 1.5rem;
+}
+.bi-sm {
+    font-size: .875rem;
+}
+
+/* Tooltip customization */
+.chartjs-tooltip {
+    opacity: 1;
+    background-color: rgba(0,0,0,.8);
+    border-radius: .25rem;
+    padding: .5rem .75rem;
+    font-size: .875rem;
+    color: white;
+}

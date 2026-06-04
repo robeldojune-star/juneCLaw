@@ -136,11 +136,6 @@ docs/strategies/29_paper_validation_gate_review_2026-05-31.md
 | 25 | `docs/strategies/current_session_handoff_2026-05-29_signal_strategy.md` | 세션 이어가기 보고서 | 신호 기반 단타+스윙 자동화 handoff |
 | 26 | `docs/strategies/fujimoto_126_video_strategy_v1.md` | 1-2-6 분할매매 초안 | 보조/관찰 전략 후보 |
 | 27 | `docs/strategies/27_entry_variant_comparison_2026-05-30.md` | OR 진입 변형 비교 결과 | 즉시돌파/pullback/거래량/급락/10:00 확인 비교. 표본 부족으로 주문 반영 보류 |
-| 28 | `docs/strategies/28_중복방지_마스터_보고서_2026-06-01.md` | 워크플로우 중복 방지 | 아침 n8n, 장중/장후 Hermes cron 역할 분리 기준 |
-| 29 | `docs/strategies/29_legacy_markdown_consolidation_2026-06-04.md` | 레거시 Markdown 정리 | 루트/중복 문서의 핵심을 마스터 플랜에 반영하고 원문 archive 기준 수립 |
-| 30 | `docs/strategies/30_operating_file_structure_2026-06-04.md` | 운영 파일 구조 및 RSI/CCI 반영 확인 | 첨부 RSI/CCI master_plan 반영 여부와 현재 운영 폴더 구조 정리 |
-| 31 | `docs/strategies/fujimoto_independent_plan.md` | 후지모토 독립 전략 계획 | 보조/독립 후보 전략의 세부 계획. 현재 paper/real 근거 아님 |
-| 32 | `docs/strategies/fujimoto_shigeru_strategy_report.md` | 후지모토 전략 리포트 | 원문 전략 검토 자료. 최신 판단은 마스터 플랜 요약 우선 |
 
 ---
 
@@ -155,9 +150,7 @@ docs/strategies/29_paper_validation_gate_review_2026-05-31.md
 | 3 | `time_ordered_trading_workflow_report.md` | 하루 시간순 운영 흐름 |
 | 4 | `ka10080_minute_backtest_pipeline_report_2026-05-29.md` | 백테스트 데이터 기준 |
 | 5 | `signal_utilization_gap_report_2026-05-29.md` | 신호 활용 문제와 개선 과제 |
-| 6 | `27_entry_variant_comparison_2026-05-30.md` | 최신 진입 변형 검증 결과 |
-| 7 | `28_중복방지_마스터_보고서_2026-06-01.md` | n8n/Hermes 역할 분리와 중복 방지 원칙 |
-| 8 | `29_legacy_markdown_consolidation_2026-06-04.md` | 루트/중복 Markdown 정리와 미반영 내용 요약 |
+| 6 | `reports/entry_variant_comparison_latest.md` | 최신 진입 변형 검증 결과 |
 
 업데이트 원칙:
 
@@ -168,7 +161,7 @@ docs/strategies/29_paper_validation_gate_review_2026-05-31.md
 3. 이 인덱스에 번호를 추가한다.
 4. 00_master_trading_plan.md의 현재 상태/다음 작업/차단 조건만 갱신한다.
 5. 과거 보고서는 삭제하지 않고, 현재 해석을 인덱스에 적는다.
-6. 원문을 마스터 플랜에 통째로 붙이지 않는다.
+|| 28 | `docs/strategies/28_중복방지_마스터_보고서_2026-06-01.md` | 워크플로우 중복 분석 및 방지 방안 | 현재 운영 워크플로우와 제안된 n8n 기반 아침 분석 워크플로우 간 중복 방지 및 역할 분담 원칙 제시 |
 ```
 
 ---
@@ -178,11 +171,11 @@ docs/strategies/29_paper_validation_gate_review_2026-05-31.md
 사용자가 전체 내용을 빠르게 파악하려면 아래 순서로 읽는다.
 
 ```text
-00_master_trading_plan.md
 00_report_standards_and_index.md
+00_master_trading_plan.md
+09 investment_strategy_registry_v1.md
+17 time_ordered_trading_workflow_report.md
 23 current_trading_execution_plan.md
 24 signal_utilization_gap_report_2026-05-29.md
-27_entry_variant_comparison_2026-05-30.md
-28_중복방지_마스터_보고서_2026-06-01.md
-29_legacy_markdown_consolidation_2026-06-04.md
+27 entry_variant_comparison_latest.md 또는 향후 docs 요약본
 ```

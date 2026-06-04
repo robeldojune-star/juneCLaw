@@ -222,6 +222,59 @@ class MarketDataService:
             )
         return [row for row in rows if isinstance(row, dict)]
 
+    def get_minute_chart_page(
+        self,
+        stock_code: str,
+        *,
+        base_dt: str | None = None,
+        minute_scope: str = "1",
+        adjusted_price: bool = True,
+        cont_yn: str = "N",
+        next_key: str = "",
+    ) -> dict[str, Any]:
+        """Return one ka10080 page plus continuation headers.
+
+        ka10080 returns up to about 900 rows per call and exposes continuation
+        state in HTTP response headers (cont-yn/next-key), not in the JSON body.
+        Keeping these headers is required for opening-session backtests because
+        the first page for a historical base date may start after 09:00.
+        """
+        code = normalize_stock_code(stock_code)
+        if not is_stock_code(code):
+            raise ValueError(f"Invalid KRX stock code: {stock_code}")
+        body: dict[str, Any] = {
+            "stk_cd": code,
+            "tic_scope": str(minute_scope),
+            "upd_stkpc_tp": "1" if adjusted_price else "0",
+        }
+        if base_dt:
+            body["base_dt"] = str(base_dt)
+        response = self.client.post(
+            "ka10080",
+            "/api/dostk/chart",
+            body,
+            cont_yn=cont_yn,
+            next_key=next_key,
+        )
+        rows = response.data.get("stk_min_pole_chart_qry")
+        if not isinstance(rows, list):
+            raise KiwoomAPIError(
+                f"ka10080 response missing list key stk_min_pole_chart_qry; keys={list(response.data.keys())[:12]}",
+                api_id="ka10080",
+                http_status=response.http_status,
+                return_code=response.return_code,
+                return_msg=response.return_msg,
+                response=response.data,
+            )
+        return {
+            "rows": [row for row in rows if isinstance(row, dict)],
+            "cont_yn": response.cont_yn,
+            "next_key": response.next_key,
+            "return_code": response.return_code,
+            "return_msg": response.return_msg,
+            "http_status": response.http_status,
+        }
+
     def get_intraday_ohlcv(self, stock_code: str) -> list[IntradayBar]:
         code = normalize_stock_code(stock_code)
         bars: list[IntradayBar] = []

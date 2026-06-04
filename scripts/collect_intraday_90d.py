@@ -90,6 +90,7 @@ def main() -> int:
     parser.add_argument("--max-requests-per-stock", type=int, default=4)
     parser.add_argument("--max-rows-per-stock", type=int, default=3000)
     parser.add_argument("--delay", type=float, default=0.25)
+    parser.add_argument("--page-delay", type=float, default=0.15, help="Delay between ka10080 continuation pages for one stock.")
     parser.add_argument("--trading-env", choices=["mock", "prod"], default=None, help="Kiwoom env for historical data collection. Defaults to BACKTEST_KIWOOM_ENV or mock.")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--batch-size", type=int, default=500)
@@ -134,9 +135,20 @@ def main() -> int:
             request_summaries: list[dict[str, Any]] = []
             oldest_ts: datetime | None = None
             newest_ts: datetime | None = None
+            cont_yn = "N"
+            next_key = ""
             for request_no in range(1, args.max_requests_per_stock + 1):
+                if request_no > 1 and args.page_delay > 0:
+                    time.sleep(args.page_delay)
                 try:
-                    rows = market.get_minute_chart_raw(code, base_dt=base_dt, minute_scope=args.minute_scope)
+                    page = market.get_minute_chart_page(
+                        code,
+                        base_dt=base_dt,
+                        minute_scope=args.minute_scope,
+                        cont_yn=cont_yn,
+                        next_key=next_key,
+                    )
+                    rows = page["rows"]
                 except Exception as exc:  # noqa: BLE001
                     stock_alerts.append(f"ka10080_fetch_failed:{type(exc).__name__}")
                     break
@@ -175,6 +187,8 @@ def main() -> int:
                         "skipped_rows": skipped,
                         "oldest_cntr_tm": request_oldest.isoformat() if request_oldest else None,
                         "newest_cntr_tm": request_newest.isoformat() if request_newest else None,
+                        "cont_yn": page.get("cont_yn"),
+                        "next_key_present": bool(page.get("next_key")),
                     }
                 )
                 if not rows:
@@ -184,7 +198,13 @@ def main() -> int:
                     break
                 if oldest_ts is not None and oldest_ts <= cutoff:
                     break
-                base_dt = _next_base_dt(request_oldest or oldest_ts, now_kst)
+                if page.get("cont_yn") == "Y" and page.get("next_key"):
+                    cont_yn = "Y"
+                    next_key = str(page["next_key"])
+                else:
+                    cont_yn = "N"
+                    next_key = ""
+                    base_dt = _next_base_dt(request_oldest or oldest_ts, now_kst)
             if not stock_payload:
                 stock_alerts.append("no_valid_ka10080_rows")
             payload.extend(stock_payload)

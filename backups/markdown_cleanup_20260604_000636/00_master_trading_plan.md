@@ -315,104 +315,113 @@ n8n의 현재 위치:
 - `docs/strategies/trading_mode_separation_policy.md` – backtest/paper/real 모드 분리
 - `docs/strategies/signal_utilization_gap_report_2026-05-29.md` – 신호 활용 누락 진단
 
-## 13. 보조 전략·실험 노트 통합 요약
 
-아래 항목은 기존 루트/중복 Markdown에 흩어져 있던 내용을 마스터 플랜 기준으로 요약 반영한 것이다. 원문은 보관하되, 운영 판단은 이 요약을 우선한다.
+## 13. RSI/CCI Disparity Strategy (Master Plan from master_plan-1.md)
 
-### 13.1 후지모토 1-2-6 독립 전략 상태
+# Master Plan: RSI/CCI Disparity Strategy with Mock/Prod Separation
 
-| 항목 | 현재 해석 |
-|---|---|
-| 전략 위치 | **주 전략이 아니라 보조/독립 후보 전략** |
-| 구현 상태 | `core/fujimoto_126_filter.py` 등 핵심 지표 구현은 존재 |
-| 기존 긍정 결과 | 재진입 포함 일부 백테스트에서 평균 수익/승률 개선 사례가 있었음 |
-| 현재 제한 | 최근 표본에서는 진입 신호 부족, 파라미터 안정성/표본 확대 미완료 |
-| 운영 판단 | paper/real 허용 근거 아님. ka10080 표본 확대 후 보조 필터로 재평가 |
+## Overview
+This plan outlines the steps to develop, test, and deploy the RSI/CCI disparity20 strategy with clear separation between mock (demo) and production (real) Kiwoom accounts, avoiding confusion and unintended orders.
 
-후지모토 관련 남은 과제:
-- ka10080 기준 90거래일 이상 또는 동등 수준 표본 확보
-- 한국 시장용 RSI/MACD/Ichimoku 파라미터 재검증
-- 1:2:6 분할 진입은 주문 레이어 후보로만 유지
-- 손절/목표수익/시간청산/트레일링 스탑은 백테스트 통과 전까지 실주문 미반영
+## Directory Structure
+- `shared/` – reusable Python modules (indicators, signal generation, order placement, notifications)
+- `envs/mock/` – contains `.env` with mock Kiwoom credentials (TRADING_ENV=mock)
+- `envs/prod/` – contains `.env` with production Kiwoom credentials (TRADING_ENV=prod)
+- `scripts/run_strategy.py` – unified runner that loads the appropriate environment and executes the strategy (dry-run or live orders)
 
-### 13.2 RSI/CCI Disparity 전략 상태
+## Implementation Details
+### Shared Modules
+1. `strategy.py`
+   - `compute_indicators(df)`: calculates MA20, disparity20, CCI, RSI, volume MA20.
+   - `generate_signals(df)`: creates buy (disparity20<=100 & CCI crosses -100 up & volume>=MA20) and sell (RSI crosses down from >=70 to <70) signals, edge-triggered.
+2. `order.py`
+   - `place_market_order(client, stock_code, qty, is_buy)`: wraps kt10000/kt10001 for market orders.
+   - `get_available_cash(client)`: queries kt00004 for 신용예수금 (dnca_exkg) to gauge orderable amount.
+3. `notify.py`
+   - `send_telegram(message)`: uses Hermes CLI to send a message to the configured Telegram chat.
 
-아카이브된 `docs/archive/legacy_markdown_2026-06-04/docs_strategies/master_plan.md`와 `docs/archive/legacy_markdown_2026-06-04/root/README_rsi_cci.md`에 있던 RSI/CCI disparity20 전략은 다음처럼 정리한다.
+### Runner Script
+`scripts/run_strategy.py`
+- Accepts arguments: `--env mock|prod`, `--stock`, `--lookback`, `--profit-target`, `--execute`, `--quantity`.
+- Loads the appropriate `.env` from `envs/<env>/.env` via `python-dotenv`, overriding `TRADING_ENV`.
+- Initializes `KiwoomAPIClient.from_env()` and `MarketDataService`.
+- For each date in the lookback window:
+  - fetches minute data (including previous day for warmup),
+  - computes indicators,
+  - generates signals,
+  - simulates or executes trades based on `--execute` flag,
+  - sends Telegram notifications on order placement.
+- Prints summary: total trades, win rate, average profit.
 
-| 항목 | 현재 해석 |
-|---|---|
-| 전략 위치 | 보조 전략 / 실험 후보 |
-| 주요 조건 | disparity20, CCI -100 상향 돌파, RSI 70 하향 이탈, 거래량 MA20 |
-| 실행 구조 | mock/prod 환경 분리, `scripts/run_strategy.py` 기반 dry-run/execute 구조 |
-| 안전 기준 | `--execute` 없이는 주문 금지, mock/prod credential 분리 |
-| 운영 판단 | 현재 마스터 전략의 핵심 gate를 대체하지 않음. 신호 비교/보조 필터 후보로 유지 |
+## Usage Guide
+### 1. Prepare Environment Files
+- Edit `envs/mock/.env`:
+  ```
+  TRADING_ENV=mock
+  KIWOOM_REST_API_KEY_MOCK=<your mock appkey>
+  KIWOOM_REST_API_SECRET_MOCK=<your mock secretkey>
+  KIWOOM_ACCOUNT_NO_MOCK=<your mock account number (starts with 8)>
+  ```
+- Edit `envs/prod/.env`:
+  ```
+  TRADING_ENV=prod
+  KIWOOM_REST_API_KEY=<your real appkey>
+  KIWOOM_REST_API_SECRET=<your real secretkey>
+  KIWOOM_ACCOUNT_NO=<your real account number (starts with 3)>
+  ```
 
-### 13.3 공시·거래량 분석 반영
-
-아카이브된 `docs/archive/legacy_markdown_2026-06-04/root/DATA_PIPELINE_CHECK.md`, `docs/archive/legacy_markdown_2026-06-04/root/DISCLOSURE_VOLUME_CORRELATION.md`의 핵심 결론:
-
-| 항목 | 결론 |
-|---|---|
-| 초기 문제 | OpenDART 공시 종목과 `daily_prices` 보유 종목 간 overlap이 없어 분석 불가 |
-| 이후 보완 | 일부 종목 일봉 데이터 재수집 후 42개 disclosure-date pair 분석 |
-| Pearson | 약 +0.0325 |
-| Spearman | 약 -0.0789 |
-| 운영 판단 | **공시 건수만으로 거래량/가격 방향을 판단하지 않는다.** 공시 유형 가중치와 유동성 필터가 필요 |
-
-후속 과제:
-- 공시 유형별 중요도 mapping 작성
-- 거래량 변동률 대신 20일 평균 대비 z-score/MAD 기반 지표 사용
-- t/t+1/t-1 시차 효과 검증
-- 저유동성 outlier 제거 기준 수립
-
-### 13.4 동적 청산/최근 실험 요약
-
-아카이브된 `docs/archive/legacy_markdown_2026-06-04/root/dynamic_exit_strategies.md`, `docs/archive/legacy_markdown_2026-06-04/root/summary.md`에 있던 실험 요약:
-
-| 실험 | 결과/해석 |
-|---|---|
-| 기본 손절 -1%, 익절 +3→+5%, 최대 3일 | 평균 순수익 음수, TIME_EXIT/STOP_LOSS 비중 높음 |
-| 손절 -5% 확대 | 손실 폭 확대, 기대값 개선 실패 |
-| 시장 관행형 손익비 테스트 | 일부 샘플에서 계속 음수 기대값 |
-| 동적 청산: 20기간 MA + 5% trailing | 후지모토 min_score 미달로 거래 0건 |
-| RSI 단독 + trailing | 테스트 표본에서 평균 순수익 음수, 승률 0% |
-
-운영 판단:
-- 청산 로직보다 먼저 **진입 조건의 기대값과 신호 빈도**를 확보해야 한다.
-- 동적 청산은 폐기하지 않되, 현재 paper/real gate 해제 근거가 아니다.
-- 다음 검증은 “진입 기준 완화/확장 → 충분 표본 확보 → 청산 로직 비교” 순서로 진행한다.
-
----
-
-## 14. 대시보드·운영 UI 기준
-
-현재 Dash Kiwoom 대시보드는 read-only 운영 터미널이다.
-
-| 항목 | 기준 |
-|---|---|
-| 서비스 | user systemd `dash-kiwoom.service` |
-| 포트 | `127.0.0.1:3000` |
-| 외부 URL | `https://dash-kiwoom.duckdns.org/` |
-| Caddy 역할 | 외부 reverse proxy 및 서비스 map 표시 |
-| 주문 기능 | 없음 / read-only |
-| 실시간 시장 지수 | **미연동**. 가짜 KOSPI/KOSDAQ/USD/BTC 값 표시 금지 |
-| 현재 시장 카드 | `signals.csv` 기반 신호 freshness/STALE/LIVE 상태 표시 |
-
-대시보드는 의사결정 보조 화면이며, 실시간 지수/체결/호가 feed가 연결되기 전까지 “실시간 시장 현황”이라고 표시하지 않는다.
-
----
-
-## 15. 문서 정리 기준
-
-이번 정리 이후 문서 기준은 다음과 같다.
-
-```text
-1. 사용자가 먼저 읽을 문서: docs/strategies/00_master_trading_plan.md
-2. 문서 인덱스: docs/strategies/00_report_standards_and_index.md
-3. 중복 master_plan/루트 실험 메모: docs/archive/legacy_markdown_YYYY-MM-DD/에 보관
-4. 새 의사결정 문서: docs/strategies/NN_topic_YYYY-MM-DD.md 형식
-5. 가벼운 원문/추출물: docs/strategy_sources 또는 archive에 보관하되 마스터 플랜에는 요약만 반영
+### 2. Mock Validation (No Real Money)
+```bash
+cd /home/june/trading
+python3 scripts/run_strategy.py --env mock --stock 042660 --lookback 5 --profit-target 1.5
 ```
+- Observe buy/sell signals in the console; no orders are placed.
 
-마스터 플랜에는 원문을 통째로 붙이지 않고, 운영 판단/차단 조건/다음 작업만 반영한다.
+### 3. Mock Order Test (Optional)
+```bash
+python3 scripts/run_strategy.py --env mock --stock 042660 --execute --quantity 1
+```
+- Places actual orders in the Kiwoom mock server; verify via Kiwoom HTS/API that orders appear and telegram alerts are received.
 
+### 4. Check Mock Balance (Optional)
+```bash
+TRADING_ENV=mock python3 test_balance_query.py
+```
+- Confirms available cash (`dnca_exkg`) and holdings.
+
+### 5. Production Validation (Real Money – Start Small)
+- Double-check that `envs/prod/.env` contains correct real credentials.
+- Run a minimal size test:
+```bash
+python3 scripts/run_strategy.py --env prod --stock 042660 --execute --quantity 1
+```
+- Monitor your real account and telegram for order fills.
+
+### 6. (Optional) Automate with Hermes Cron
+Once satisfied with tests, register a cron job to run during market hours (09:00‑15:30, Mon‑Fri):
+```bash
+hermes cronjob create \\
+    --name rsi_cci_live \\
+    --schedule '*/1 9-15 * * 1-5' \\
+    --prompt \"cd /home/june/trading && python3 scripts/run_strategy.py --env prod --stock 042660 --execute --quantity 1\" \\
+    --workdir /home/june/trading \\
+    --deliver telegram:<your_chat_id>
+```
+- Adjust `--quantity` or add position sizing logic as desired.
+
+## Safety Checks
+- **Environment Separation**: Mock and prod keys are stored in distinct files; the loader picks only one based on `--env`, eliminating cross‑contamination.
+- **Order Execution Guard**: Orders are sent only when `--execute` flag is present; default is dry‑run.
+- **Quantity Control**: Use `--quantity` to limit order size; start with 1 share in prod.
+- **Telegram Alerts**: All order attempts (mock or prod) generate a telegram message for audit.
+
+## Next Steps / Possible Enhancements
+- Add stop‑loss or trailing exit logic in `shared/strategy.py`.
+- Implement dynamic position sizing based on available cash (`get_available_cash`).
+- Extend the runner to handle a list of stocks (e.g., KOSPI Top 50) with lookback warmup.
+- Store trade results to CSV/SQLite for performance analysis.
+- Integrate with existing n8n workflows for pre‑market risk checks.
+
+---
+*Recorded: 2026-06-01*
+*Location: /home/june/trading/docs/strategies/master_plan.md*

@@ -254,7 +254,7 @@ def stage_collect_intraday_90d() -> list[WorkflowStep]:
                 "--max-rows-per-stock",
                 "3000",
                 "--trading-env",
-                "mock",
+                "prod",
             ],
             timeout=600,
         )

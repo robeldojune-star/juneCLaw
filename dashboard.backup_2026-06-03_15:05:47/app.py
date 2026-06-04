@@ -65,20 +65,23 @@ def get_account_info(env_name: str):
 
 def background_thread():
     """Background thread to send realtime updates via socketio."""
+    # Load mock environment for account data (dashboard uses mock for account info)
+    load_environment("mock")
     while True:
         try:
             # Fetch data
-            signals = load_signals().head(50)
-            # Convert time to ISO string for JSON serialization
-            signals['time'] = signals['time'].dt.strftime('%Y%m%d%H%M%S')
-            records = signals.to_dict(orient='records')
+            signals = load_signals()
+            # Only process if not empty
+            if not signals.empty:
+                # Convert time to ISO string for JSON serialization
+                signals['time'] = signals['time'].dt.strftime('%Y%m%d%H%M%S')
+            records = signals.head(50).to_dict(orient='records')
             for record in records:
                 for k, v in record.items():
                     if isinstance(v, float) and pd.isna(v):
                         record[k] = None
-            # Mock account data (we can also fetch real but for simplicity use mock)
-            # In production we might want to fetch real account via env=mock or real
-            accountData = {"holdings": [], "cash": {}}
+            # Fetch account data (using mock environment)
+            accountData = get_account_info("mock")
             # Emit to all clients
             socketio.emit('update', {"signals": records, "accountData": accountData})
         except Exception as e:
@@ -94,7 +97,8 @@ def api_signals():
     df = load_signals()
     df = df.head(50)
     # Convert time to ISO string for JSON serialization
-    df['time'] = df['time'].dt.strftime('%Y%m%d%H%M%S')
+    if not df.empty:
+        df['time'] = df['time'].dt.strftime('%Y%m%d%H%M%S')
     # Replace NaN with None for valid JSON
     records = df.to_dict(orient='records')
     for record in records:
@@ -124,4 +128,4 @@ if __name__ == '__main__':
     thread = threading.Thread(target=background_thread)
     thread.daemon = True
     thread.start()
-    socketio.run(app, host='0.0.0.0', port=3000, debug=False)
+    socketio.run(app, host='0.0.0.0', port=3000, debug=False, allow_unsafe_werkzeug=True)

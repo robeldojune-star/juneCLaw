@@ -32,6 +32,11 @@ WORKFLOW = "daily_trading_workflow_v1"
 STAGE = "collect_current_session_snapshots"
 
 
+def _is_kiwoom_snapshot_code(code: str | None) -> bool:
+    """ka10006 currently accepts standard six-digit numeric stock/ETF codes."""
+    return bool(code and len(code) == 6 and code.isdigit())
+
+
 def _run_candidate_compression() -> dict[str, Any] | None:
     proc = subprocess.run(
         [sys.executable, "scripts/candidate_compression_layer.py"],
@@ -62,6 +67,9 @@ def _load_codes_from_supabase(limit: int) -> tuple[list[str], list[str], list[st
     if comp and isinstance(comp.get("candidates"), list):
         for c in comp.get("candidates", []):
             code = normalize_stock_code(c.get("stock_code"))
+            if code and not _is_kiwoom_snapshot_code(code):
+                alerts.append(f"skipped_non_numeric_snapshot_code:{code}")
+                continue
             if code and code not in codes:
                 codes.append(code)
             if len(codes) >= limit:
@@ -83,6 +91,9 @@ def _load_codes_from_supabase(limit: int) -> tuple[list[str], list[str], list[st
             )
             for r in rows:
                 code = normalize_stock_code(r.get("stock_code"))
+                if code and not _is_kiwoom_snapshot_code(code):
+                    alerts.append(f"skipped_non_numeric_snapshot_code:{code}")
+                    continue
                 if code and code not in codes:
                     codes.append(code)
         except SupabaseRestError as exc:
@@ -148,6 +159,9 @@ def main() -> int:
         codes = []
         for c in args.stock_codes:
             code = normalize_stock_code(c)
+            if code and not _is_kiwoom_snapshot_code(code):
+                alerts.append(f"skipped_non_numeric_snapshot_code:{code}")
+                continue
             if code and code not in codes:
                 codes.append(code)
         codes = codes[: args.limit]

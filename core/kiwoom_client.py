@@ -47,6 +47,7 @@ class KiwoomResponse:
     http_status: int
     data: dict[str, Any]
     raw_preview: str
+    response_headers: dict[str, str] | None = None
 
     @property
     def return_code(self) -> Any:
@@ -59,6 +60,14 @@ class KiwoomResponse:
     @property
     def ok(self) -> bool:
         return self.http_status == 200 and self.return_code in (0, "0")
+
+    @property
+    def cont_yn(self) -> str:
+        return (self.response_headers or {}).get("cont-yn", "")
+
+    @property
+    def next_key(self) -> str:
+        return (self.response_headers or {}).get("next-key", "")
 
 
 def load_env_file(env_path: str | Path) -> dict[str, str]:
@@ -176,7 +185,17 @@ class KiwoomAPIClient:
         self._token_expires_at = now + 55 * 60
         return self._token
 
-    def post(self, api_id: str, path: str, body: dict[str, Any] | None = None, *, retries: int = 3, raise_on_error: bool = True) -> KiwoomResponse:
+    def post(
+        self,
+        api_id: str,
+        path: str,
+        body: dict[str, Any] | None = None,
+        *,
+        retries: int = 3,
+        raise_on_error: bool = True,
+        cont_yn: str = "N",
+        next_key: str = "",
+    ) -> KiwoomResponse:
         token = self.issue_token()
         payload = body or {}
         last_response: KiwoomResponse | None = None
@@ -187,8 +206,8 @@ class KiwoomAPIClient:
                     "Content-Type": "application/json;charset=UTF-8",
                     "authorization": f"Bearer {token}",
                     "api-id": api_id,
-                    "cont-yn": "N",
-                    "next-key": "",
+                    "cont-yn": cont_yn,
+                    "next-key": next_key,
                 },
                 json=payload,
                 timeout=30,
@@ -198,7 +217,13 @@ class KiwoomAPIClient:
                 data = response.json()
             except Exception:
                 data = {"_non_json": text_preview}
-            last_response = KiwoomResponse(api_id=api_id, http_status=response.status_code, data=data, raw_preview=text_preview)
+            last_response = KiwoomResponse(
+                api_id=api_id,
+                http_status=response.status_code,
+                data=data,
+                raw_preview=text_preview,
+                response_headers={k.lower(): v for k, v in response.headers.items()},
+            )
             if response.status_code == 429 and attempt < retries:
                 time.sleep(10 * attempt)
                 continue
