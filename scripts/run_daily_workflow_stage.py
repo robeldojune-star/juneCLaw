@@ -175,7 +175,7 @@ def stage_morning_investment_layer() -> list[WorkflowStep]:
 
 
 def stage_collect_current_session_snapshots() -> list[WorkflowStep]:
-    return [_run_command("collect_current_session_snapshots", [sys.executable, "scripts/collect_current_session_snapshots.py", "--limit", "10", "--trading-env", "prod"], timeout=240)]
+    return [_run_command("collect_current_session_snapshots", [sys.executable, "scripts/collect_current_session_snapshots.py", "--limit", "20", "--trading-env", "prod"], timeout=240)]
 
 
 def stage_intraday_timing_alert(window: int) -> list[WorkflowStep]:
@@ -191,7 +191,7 @@ def stage_intraday_timing_alert(window: int) -> list[WorkflowStep]:
 def stage_opening_layer(window: int, stage_name: str) -> list[WorkflowStep]:
     mode_block = "pattern_model_not_ready_for_auto_order"
     steps = [
-        _run_command("collect_current_session_snapshots", [sys.executable, "scripts/collect_current_session_snapshots.py", "--limit", "10", "--trading-env", "prod"], timeout=240),
+        _run_command("collect_current_session_snapshots", [sys.executable, "scripts/collect_current_session_snapshots.py", "--limit", "20", "--trading-env", "prod"], timeout=240),
         _run_command(
             stage_name,
             [sys.executable, "scripts/run_opening_strategy_candidate_loop.py", "--window", str(window), "--limit", "10"],

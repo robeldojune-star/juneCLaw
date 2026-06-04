@@ -140,7 +140,7 @@ def _snapshot_payload(code: str, snap: dict[str, Any], timestamp: str) -> tuple[
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--stock-codes", nargs="+", default=None)
-    parser.add_argument("--limit", type=int, default=10)
+    parser.add_argument("--limit", type=int, default=20)
     parser.add_argument("--delay", type=float, default=0.25)
     parser.add_argument("--trading-env", choices=["mock", "prod"], default=None, help="Kiwoom env for current-session snapshots. Defaults to LIVE_DATA_KIWOOM_ENV/TRADING_ENV/mock.")
     parser.add_argument("--allow-offhours", action="store_true")

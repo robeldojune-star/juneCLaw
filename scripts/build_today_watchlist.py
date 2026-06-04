@@ -157,7 +157,7 @@ def main() -> int:
     blocks.extend(str(x) for x in comp.get("blocking_conditions", []) if x)
     alerts.extend(str(x) for x in comp.get("alerts", []) if x)
     candidates = comp.get("candidates", []) if isinstance(comp.get("candidates"), list) else []
-    watchlist = [normalize_candidate(c, idx + 1) for idx, c in enumerate(candidates[:10])]
+    watchlist = [normalize_candidate(c, idx + 1) for idx, c in enumerate(candidates[:20])]
     watchlist = [w for w in watchlist if w.get("stock_code")]
 
     if not watchlist:

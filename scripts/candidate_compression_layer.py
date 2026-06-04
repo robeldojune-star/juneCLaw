@@ -96,7 +96,7 @@ def main() -> int:
             }
         )
     candidates.sort(key=lambda x: num(x.get("compressed_score")), reverse=True)
-    top = candidates[:10]
+    top = candidates[:20]
     if not top and not blocks:
         blocks.append("candidate_watchlist_empty")
 
