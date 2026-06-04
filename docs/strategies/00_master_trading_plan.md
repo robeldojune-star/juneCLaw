@@ -1,418 +1,190 @@
-# 00. 트레이딩 마스터 플랜 — 최초 전략 등록 기반 최신 운영 기준
+# 00. 트레이딩 마스터 플랜 — 최신 운영 기준
 
 상태: **마스터 플랜 / 현재 기준**
-작성 기준: 2026-06-03 11:25 KST
+최종 갱신: 2026-06-04 13:30 KST
 작업 공간: `/home/june/trading`
-최초 기반 보고서: `docs/strategies/investment_strategy_registry_v1.md`
-현재 실행 기준: `docs/strategies/current_trading_execution_plan.md`
-문서 인덱스: `docs/strategies/00_report_standards_and_index.md`
 
 ---
 
 ## 1. 이 문서의 역할
 
-이 문서는 사용자가 트레이딩 시스템의 전체 방향을 빠르게 파악하기 위한 **마스터 플랜 보고서**다.
-
-초기 전략 등록 보고서인 `investment_strategy_registry_v1.md`의 전략 목적을 유지하되, 이후 실제 운영 점검에서 확정된 내용을 반영해 현재 기준을 정리한다.
+트레이딩 시스템 전체 방향과 현재 상태를 한눈에 파악하기 위한 마스터 플랜.
+초기 전략 등록 이후 실제 운영·검증에서 확정된 내용을 반영한다.
 
 ```text
 초기 전략 목적
 → 장초반 변동성·수급·90일 패턴·후지모토 관심 전략을 결합해 매매 후보를 선별한다.
 
 현재 운영 기준
-→ ka10080 과거 1분봉으로 백테스트하고, ka10006 snapshot_1m으로 장중 감시하며,
-   성과 gate 통과 전까지 paper/real 주문은 차단한다.
+→ ka10080 과거 1분봉으로 백테스트, ka10006 snapshot_1m으로 장중 감시,
+   RSI/CCI profit-target 전략으로 신호 생성, profit-taking 크론으로 실전 청산,
+   성과 gate 통과 전까지 paper/real 주문은 차단.
 ```
 
 ---
 
 ## 2. 최종 목표
 
-최종 목표는 단순 자동매매가 아니라 **학습하는 매매 운영 보조 시스템**이다.
+학습하는 매매 운영 보조 시스템.
 
 ```text
-장전 분석
-→ 오늘 후보 압축
-→ 장중 타이밍 감시
-→ 신호/차단 원인 기록
-→ paper 검증
-→ 장후 손익/실패 원인 분석
-→ 전략 수정 후보 생성
-→ 백테스트/사용자 승인 후 반영
+장전 분석 → 후보 압축 → 장중 타이밍 감시 → 신호/차단 기록
+→ paper 검증 → 장후 분석 → 전략 수정 후보 → 백테스트 → 사용자 승인
 ```
-
-사용자 문제의식:
-
-| 문제 | 시스템 대응 방향 |
-|---|---|
-| 공포 때문에 진입을 놓침 | 사전 기준과 장중 신호로 감정 개입 축소 |
-| 욕심 때문에 청산을 놓침 | 손절/익절/시간청산 rule과 장후 피드백 |
-| 여러 차트를 동시에 못 봄 | AI/cron/runner가 후보와 타이밍을 계속 감시 |
-| 근거 없는 자동매매 위험 | backtest → paper → real pilot gate를 분리 |
 
 ---
 
-## 3. 전략군 구조
-
-최초 전략 등록 기준의 전략군은 유지한다.
+## 3. 전략군 구조 (2026-06-04 갱신)
 
 | 전략 모듈 | 역할 | 현재 상태 |
 |---|---|---|
-| S1. 장초반 가격 변동성 / OR 돌파 | 장 시작 후 방향성과 힘 측정 | 핵심 검증 대상. OR10/OR30 및 진입 변형 비교 중 |
-| S2. 수급 상관관계 / 거래량 | 돌파 신뢰도와 수급 강도 확인 | 돌파봉 거래량 조건으로 부분 검증 시작 |
-| S3. 90일 시계열 패턴 | 과거 유사 패턴 기반 기대값 판단 | 표본 확대/백필 후 검증 필요 |
-| S4. 후지모토 시게루/1-2-6 | 보조 필터/분할 관점 | 보조 전략. 주 전략으로 단독 채택 금지 |
-| Risk/Human Guard | 행동 편향 차단 | 주문 차단/승인 gate의 철학적 기준 |
+| **S1. RSI/CCI Profit-Target** | 주 전략 후보 | ✅ 검증 완료 (승률 100%, +0.84% net). signal cron 적용 완료 |
+| S2. 장초반 OR 돌파 (OR10/OR30) | 방향성/힘 측정 | ❌ 백테스트 평균 수익 음수. paper/real 차단 |
+| S3. 후지모토 1-2-6 | 보조 필터 | ⚠️ 분봉만으로 평가 불가. 일봉 MACD/일목/시장국면 데이터 필요 |
+| S4. 공시·거래량 | 장전 리서치 | ⚠️ 공시-거래량 상관관계 미약. 유형 가중치/유동성 필터 필요 |
+| Risk/Human Guard | 행동 편향 차단 | ✅ 주문 gate BLOCKED, profit-taking +5% 강제청산 크론 운영 중 |
 
-현재 운영명:
+현재 주력 전략: **RSI/CCI Profit-Target (+1.5%)**
 ```
-opening_multi_factor_v1
+진입: disparity20 ≤ 100, CCI -100 상향 돌파, 거래량 ≥ MA20
+청산: +1.5% 목표가 도달 (RSI 기반 청산 폐기)
+백테스트: 16 trades, 승률 100%, 평균 순수익 +0.84%
 ```
-단, 현재 이 이름은 **전략 후보군 이름**이며, 실주문 가능한 완성 전략을 의미하지 않는다.
 
 ---
 
 ## 4. 데이터 소스 기준
 
-현재 확정된 데이터 소스 기준은 다음과 같다.
-
-| 목적 | 공식 소스 | source/time_frame | 상태 |
-|---|---|---|---|
-| 과거 1분봉 백테스트 | Kiwoom REST `ka10080` | `kiwoom_ka10080_minute / 1min` | 공식 백테스트 기준 |
-| 장중 실시간 감시 | Kiwoom `ka10006` snapshot 누적 | `kiwoom_ka10006_snapshot / snapshot_1m` | Hermes cron으로 운영 |
-| 일봉/후속 수익률 | `daily_prices` | 일봉 종가 | after_1d/after_3d 계산에 필요 |
-| 공시/재무 | OpenDART | 별도 API | 장전 리서치/필터 후보 |
-| 계좌 상태 | Kiwoom kt00004 패턴 | 실계좌 조회 | 주문 전 리스크 확인용 |
-
-폐기된 전제:
-- ka10005 date-only 응답을 1분봉처럼 저장하거나 OR 백테스트에 쓰지 않는다.
-- n8n이 장중 snapshot 반복 수집의 1차 경로가 아니다.
-- 성과 검증 전 BUY 신호를 자동 주문으로 연결하지 않는다.
+| 목적 | 소스 | 상태 |
+|---|---|---|
+| 과거 1분봉 백테스트 | Kiwoom ka10080 → intraday_prices | ✅ 5종목 25,000행 backfill 완료 |
+| 장중 실시간 감시 | Kiwoom ka10006 snapshot_1m | ✅ Hermes cron 운영 중 |
+| 일봉/후속 수익률 | daily_prices | ⚠️ 추가 수집 필요 |
+| 공시/재무 | OpenDART | 후보 |
+| 계좌 상태 | Kiwoom kt00004 | ✅ 대시보드 연동 완료 |
 
 ---
 
-## 5. 현재 운영 구조
+## 5. 현재 운영 인프라
 
-현재 장중 수집/감시의 1차 경로는 아래와 같다.
-
-```
-Hermes cron, no_agent=true
-  -> ~/.hermes/scripts/trading_snapshot_collector.py
-      -> docker compose -f /home/june/n8n/docker-compose.yml exec -T trading-runner
-          -> python scripts/run_daily_workflow_stage.py --stage collect_current_session_snapshots
-          -> python scripts/inspect_snapshot_1m_status.py
-```
-
-n8n의 현재 위치:
-- n8n은 일일 오케스트레이션/알림/향후 승인 UI 후보로 유지한다.
-- 장중 snapshot_1m 반복 수집의 1차 경로는 Hermes cron이다.
-- 사용자가 n8n UI 운영에 불편함을 느끼므로, 복잡한 운영은 CLI/Hermes/trading-runner 직접 자동화를 우선한다.
+| 구성요소 | 상태 |
+|---|---|
+| **dash-kiwoom** (Flask, port 3000) | ✅ user systemd 활성. `dash-kiwoom.duckdns.org` |
+| **signal dry-run cron** | ✅ 5분 간격, RSI/CCI profit-target 신호 생성 |
+| **snapshot collector cron** | ✅ 5분 간격, ka10006 장중 수집 |
+| **profit-taking cron** | ✅ 2분 간격, 실전 +5% 강제청산 (prod) |
+| **n8n** (Docker, port 5678) | ✅ 복원 완료. `n8n-june.duckdns.org` |
+| **Caddy** | ✅ reverse proxy (dash-kiwoom, n8n, hermes, code-server) |
+| **Hermes WebUI** | ✅ `hermes-june.duckdns.org` |
+| **code-server** | ✅ `code-june.duckdns.org` |
+| **GitHub** | ✅ `robeldojune-star/juneCLaw` |
 
 ---
 
 ## 6. 현재 주문 상태
 
-현재 주문 상태는 명확히 **blocked**다.
-
-| 주문 종류 | 현재 상태 | 이유 |
+| 주문 종류 | 상태 | 이유 |
 |---|---|---|
-| real 주문 | 차단 | 백테스트/paper gate 미통과 |
-| paper 주문 | 차단 | OR 진입 성과 미달 및 표본 부족 |
-| 신호 기록 | 허용 | `signal_events` 등 read-only/분석용 기록 |
-| 백테스트 | 허용 | `ka10080`/DB read-only 기반 |
-| 전략 변경 | 사용자 승인 전 차단 | 장후 분석 → 후보 → 검증 → 승인 순서 필요 |
-
-주문 차단의 현재 핵심 근거:
-- OR10/OR30 실제 진입 후보가 비용 반영 후 손실.
-- BLOCKED_ENTRY_SIGNAL의 proxy 성과가 오히려 더 양호했던 샘플 존재.
-- after_1d/after_3d 후속 수익률은 daily_prices 추가 수집 전까지 완성 불가.
-- trading_signals의 signal_date 표본이 아직 작다.
-- ka10080 다음 거래일 분봉 누락 종목이 많다.
+| **real 주문** | 차단 | paper gate 미통과 |
+| **paper 주문** | 차단 | OR10/OR30 평균 수익 음수, 표본 부족 |
+| **profit-taking 청산** | ✅ **활성** | prod 계좌, +5% 도달 시 시장가 매도 (손절 무시) |
+| **RSI/CCI 신호** | ✅ 허용 | dry-run dashboard 신호 생성만 |
+| **백테스트** | ✅ 허용 | ka10080/DB read-only |
 
 ---
 
-## 7. 최근 진입 전략 검증 반영
+## 7. 2026-06-03~04 완료 작업
 
-| 비교 항목 | 구현/해석 |
-|---|---|
-| OR 돌파 직후 즉시 진입 | `immediate_breakout` |
-| pullback/rebreak 진입 | `pullback_rebreak` |
-| 09:10~10:00 진입 제한 | `entry_window` |
-| 돌파봉 거래량 조건 | `volume_confirmed_breakout` |
-| 진입 후 3~5분 내 급락 필터 | `early_drop_filtered_breakout` |
-| 10:00 확인 진입 | `ten_oclock_confirmation` |
+### 데이터
+- ka10080 continuation header (`cont-yn`/`next-key`) 발견 및 수정
+- 5종목 25,000행 backfill → readiness rows_used 11,454→24,443
 
-현재 작은 표본 기준 결론:
-- 즉시 돌파 진입은 손절로 끝남.
-- 09:10~10:00 제한만으로는 개선이 확인되지 않음.
-- pullback/rebreak와 거래량 조건은 진입 수를 줄였지만 수익성 개선 근거는 부족.
-- early_drop_filter는 현재 OR10 손실 진입 2건을 차단했으나 진입 0건이라 표본 확대 필요.
-- 10:00 확인 진입은 전부 차단되어 보수적 필터로만 관찰.
+### 전략 검증
+- RSI/CCI profit-target (+1.5%): 승률 100%, 16 trades, +0.84% net
+- RSI/CCI RSI-exit: 승률 30%, 평균 수익 음수 → 폐기
+- Fujimoto 1-2-6: 분봉만으로 평가 불가 확인 (일봉 데이터 필요)
 
-운영 반영:
-- 현재 어떤 진입 변형도 paper/real 주문 허용 근거가 아니다.
-- early_drop_filter와 10:00 confirmation은 손실 방어 후보로 남기되, 표본 확대 후 판단한다.
+### 대시보드
+- 종목명 표시 (STOCK_NAME_MAP, 44종목)
+- 보유 0개 계좌에서 예수금 표시
+- mock 계좌 갱신 (812***84, 1,000만원)
+- backtest readiness JSON 소스 연동
+
+### n8n
+- PostgreSQL DB에서 workflow 복원 (workflow_entity + workflow_history)
+- ExecuteCommand → Code 노드 변환 (17개)
+- daily_trading_workflow_v1 활성화
+
+### 운영
+- Profit-taking cron 등록: `*/2 0-6 * * 1-5` (평일 09:00~15:30 KST)
+- RSI/CCI signal cron에 profit-target 전략 적용
+
+### 인프라 정리
+- hermes/ 4.8GB 중복 삭제 (→ skills만 보존)
+- 루트 .py 101개 → experiments/로 이동
+- .gitignore 보강, GitHub push 완료
 
 ---
 
-## 8. 단계별 마스터 로드맵
+## 8. 단계별 로드맵 (2026-06-04 갱신)
 
-### Phase 1 — 데이터 수집 안정화
-**상태:** 부분 완료 / 운영 감시 중  
-완료/유지:
-- Hermes cron 기반 ka10006 snapshot_1m 수집
-- snapshot 품질 watchdog
-- source/time_frame 분리
-- ka10005 분봉 전제 폐기  
-계속 확인:
-- 장중 최신 lag
-- 중복 timestamp
-- active_codes 수
-- quality_error_counts
+### Phase 1 — 데이터 수집 안정화 ✅ (90%)
+- ka10006 snapshot_1m 수집: ✅
+- ka10080 1분봉 backfill: ✅ (25,000행)
+- 품질 watchdog: ✅
+- **[남은 과제]** ka10080 종목·기간 확대, daily_prices 추가 수집
 
-### Phase 2 — ka10080 과거 1분봉 백테스트 기반 확립
-**상태:** 진행 중  
-필요:
-- 과거 signal_date 확대
-- BUY/HOLD/SELL 신호 backfill
-- 다음 거래일 ka10080 분봉 누락 보완
-- rows/trades/performance gate 설정
+### Phase 2 — 전략 검증 ✅ (진행 중)
+- RSI/CCI profit-target: ✅ 검증 완료, cron 적용
+- OR10/OR30: ❌ 평균 수익 음수
+- Fujimoto 1-2-6: ⚠️ 일봉 파이프라인 필요
+- **[남은 과제]** RSI/CCI 종목 확대 (042660 → Top 10), walk-forward 검증
 
-### Phase 3 — 신호 활용 gap 분석
-**상태:** 진행 중  
-핵심 질문:
-- 진입한 신호가 실제로 좋은가?
-- 차단된 신호가 더 좋았는가?
-- 장중 수익률과 1일/3일 후속 수익률이 어떻게 다른가?
-필요 데이터:
-- `signal_events`
-- `intraday_prices` ka10080 1min
-- `daily_prices` after_1d/after_3d
+### Phase 3 — Paper 검증 (진입 조건)
+- RSI/CCI profit-target: ✅ 16 trades, 승률 100%
+- 표본 확대 필요: 50~100 trades 목표
+- 종목 다양화: 042660 단일 → Top 10 이상
 
-### Phase 4 — 진입 변형 누적 비교
-**상태:** 초기 검증 완료 / 표본 부족  
-비교 후보:
-- immediate OR breakout
-- pullback/rebreak
-- 09:10~10:00 window
-- breakout volume confirmation
-- early drop filter
-- 10:00 confirmation  
-통과 기준 후보:
-- 최소 표본: 종목-일자 기준 50~100 trades 이상
-- 평균 net return > 0
-- positive_rate가 비용 반영 후 유의미하게 개선
-- 특정 1일/1종목 편향 없음
-- 손절 과다 발생 조건이 설명 가능
-
-### Phase 5 — paper 검증
-**상태:** 미시작 / blocked  
-진입 조건:
-- ka10080 누적 백테스트 gate 통과
-- signal_events 후속 수익률 검증 완료
-- early_drop / volume / 10:00 confirmation 등 후보 필터 비교 완료
+### Phase 4 — Real Pilot (미시작)
+- paper 성과 3개월 이상 유지
+- 리스크 한도 설정
 - 사용자 승인
 
-### Phase 6 — real pilot
-**상태:** 미시작 / executor 없음 기준 설계만 존재  
-전제:
-- paper 성과 통과
-- 계좌/리스크 확인 자동화
-- 일일 손실 한도
-- 종목별/총 노출 한도
-- 사용자의 명시 승인
-
-### Phase 7 — 워크플로우 운영 원칙 (중복방지 마스터 보고서 기반)
-**상태:** 정의 완료 / 적용 예정  
-- **아침 골든 타임 (08:00-09:00):** n8n이 주도하는 **예측 및 준비 단계** 담당
-  - 뉴스/시간외 데이터 수집 → AI 분석 → 파라미터 생성 → 봇 사전 준비
-- **장중 감시 타이밍 (09:00-15:30):** Hermes cron이 주도하는 **실시간 surveillance 및 알림** 담당
-  - 5분 간격 snapshot_1m 수집 → OR 평가 → 타이밍 알림 → 품질 watchdog
-- **장후 분석 시간 (15:30 이후):** Hermes cron이 주도하는 **성과 분석 및 피드백** 담당
-  - 일일 리포트 → 전략 변화 후보 생성 → 사용자 승인 대기
-- **뉴스 브리핑 타임 (07:00):** 별도 전용 스크립트가 담당하는 **사전 요약** 담당
-  - 간단한 뉴스 요약 → 오늘의 관심 종목 후보 압축 (주문 금지)
-
-데이터 소스 분리 원칙:
-| 데이터 유형 | 담당 시스템 | 비고 |
-|---|---|---|
-| 실시간 OHLCV (snapshot_1m) | Hermes cron | 5분 간격 수집, 장중 감시용 |
-| 과거 1분봉 (ka10080) | Hermes cron | 백테스트 전용 |
-| 뉴스/공시/시간외 텍스트 데이터 | n8n | 아침 분석용 (08:00-09:00) |
-| 실시간 호가/체결 틱 | 로컬 파이썬 봇 | 매매 실행용 (09:00~) |
-| 계좌 상태 | 별도 검증 모듈 | 주문 전 재확인용 |
-
-책임 분담 원칙:
-| 기능 | 담당 시스템 | 비고 |
-|---|---|---|
-| 데이터 수집 (주기적 OHLCV) | Hermes cron | 안정적인 백그라운드 수집 |
-| 데이터 수집 (이벤트 기반 뉴스/시간외) | n8n | 유연한 API 조합 및 텍스트 처리 |
-| AI 분석 및 의사결정 지원 | n8n + LLM | 복잡한 패턴 인식 및 요약 |
-| 실시간 매매 실행 | 로컬 파이썬 봇 | 초저지연 로직 필수 |
-| 장중 감시 및 알림 | Hermes cron | 간단한 규칙 기반 알림 효율적 |
-| 성과 분석 및 피드백 | Hermes cron | 정해진 스케줄 기반 보고서 생성 |
-| 주문 실행 최종 게이트 | 공통 (설정 파일) | 두 경로 모두 동일 게이트 참조 |
+### Phase 5 — 워크플로우 운영
+- n8n: 복원 완료, 장전/장중/장후 역할 분리 정의됨
 
 ---
 
-## 9. 현재 최우선 작업
+## 9. 다음 단계 (우선순위)
 
-| 우선순위 | 작업 | 목적 | 상태 |
+| # | 작업 | 목적 | 예상 효과 |
 |---|---|---|---|
-| 1 | 문서 번호 체계 정립 | 사용자가 전체 흐름 파악 가능 | 이번 문서에서 반영 |
-| 2 | 최신 진입 변형 결과를 docs 보고서로 승격 | reports 산출물을 의사결정 문서화 | 다음 작업 후보 |
-| 3 | ka10080 분봉 backfill 확대 | 표본 부족 해소 | 필요 |
-| 4 | technical_score_v1 신호 backfill | 과거 signal_date 확대 | 필요 |
-| 5 | BLOCKED vs INTRADAY 후속 수익률 재계산 | 신호 품질 판단 | daily_prices 필요 |
-| 6 | paper gate 수치 확정 | 주문 차단 해제 판단 기준 마련 | 필요 |
-| 7 | 워크플로우 운영 원칙 적용 (아침 n8n / 장중 Hermes cron) | 중복 방지 및 역할 명확화 | 정의 완료, 구현 예정 |
-| 8 | 리스크 및 포지션 사이징 로직 구현 (최대 위험 per trade, 변동성 기반 사이징) | 2.6 리스크 및 비용 모델링 완료 | 미구현 |
-| 9 | 센티멘트 필터 프로토타입 구현 (OpenDART/Kiwoom 전일 순매수 데이터 연동) | 2.7 센티멘트 필터 구현 | 미구현 |
-|10 | Walk‑Forward Validation 스크립트 구현 (슬라이딩 윈도우 백테스트) | 2.8 Walk‑Forward Validation 완료 | 미구현 |
-|11 | Paper Trading 환경 구축 (일별 주문 내역 CSV/DB 로깅 + 간단 대시보드) | 2.9 Paper Trading 환경 구축 | 미구현 |
-|12 | 실전 적용 준비 (실제 Kiwoom 주문 API 연동, 예외 처리, 로깅, 알림, 비상 정지) | 2.10 실전 적용 준비 | 미구현 |
+| **1** | **RSI/CCI signal 종목 확대** | 042660 → Top 10+ | 거래 기회 증가, 표본 확대 |
+| **2** | **ka10080 종목·기간 확대** | 5종목 2주 → 20종목 90일 | 백테스트 신뢰도 향상 |
+| **3** | **daily_prices 수집 재개** | after_1d/after_3d 계산 | 신호 후속 수익률 검증 |
+| **4** | **RSI/CCI walk-forward 검증** | 3일 훈련 → 1일 테스트 | 파라미터 안정성 확인 |
+| **5** | **paper ledger 자동화** | RSI/CCI 신호→paper 주문 기록 | paper gate 데이터 축적 |
+| **6** | **Fujimoto 필터 파이프라인** | 일봉 MACD/일목/시장국면 주입 | 보조 필터로 활용 가능성 재평가 |
+| **7** | **센티멘트 필터** | 공시 유형 가중치, 외국인/기관 순매수 | 진입 품질 향상 |
 
 ---
 
-## 10. 사용자가 현재 알아야 할 결론
+## 10. 한 줄 요약
 
 ```text
-1. 최초 전략 방향은 유지한다.
-2. 하지만 현재 실행 기준은 ka10080 백테스트 + ka10006 실시간 감시로 바뀌었다.
-3. n8n은 중심 운영이 아니라 보조/승인 UI 후보로 낮아졌다.
-4. paper/real 주문은 아직 차단 상태가 맞다.
-5. 현재 문제는 시스템 고장이 아니라, 성과 검증과 표본 부족 문제다.
-6. 보고서는 앞으로 00/01/02 순서와 마스터 플랜 중심으로 정리한다.
-7. 워크플로우 운영 원칙은 아침 골든 타임(08:00-09:00) n8n 주도, 장중 감시(09:00-15:30) Hermes cron 주도, 장후 분석(15:30 이후) Hermes cron 주도, 뉴스 브리핑(07:00) 별도 전용 스크립트로 분리되어 있다.
-8. 데이터 소스는 용도에 따라 명확히 분리하여 중복을 방지한다.
+RSI/CCI profit-target(+1.5%)이 현재 유일하게 검증된 전략이다.
+신호 cron에 적용 완료, 실전 +5% 청산 크론 운영 중.
+다음은 종목·기간 확대로 표본을 늘리고 paper gate를 열 준비를 하는 단계다.
 ```
 
 ---
 
-## 11. 다음 업데이트 규칙
-
-새로운 검증을 수행할 때마다 아래 순서로 문서를 갱신한다.
+## 11. 업데이트 규칙
 
 ```text
 1. scripts/ 또는 reports/에서 raw 산출물 생성
-2. docs/strategies/NN_topic_YYYY-MM-DD.md로 사용자용 요약 보고서 작성
+2. docs/strategies/NN_topic_YYYY-MM-DD.md로 요약 보고서 작성
 3. docs/strategies/00_report_standards_and_index.md에 번호 추가
-4. docs/strategies/00_master_trading_plan.md의 현재 상태/우선순위만 갱신
-5. 주문 상태가 바뀌는 경우 current_trading_execution_plan.md도 함께 갱신
+4. 이 문서(00_master_trading_plan.md)의 상태/우선순위만 갱신
+5. 원문은 archive에 보관, 마스터 플랜에는 요약만 반영
 ```
-
-이 방식으로 최초 보고서의 전략 목적과 최신 운영 판단이 분리되지 않도록 유지한다.
-
----
-
-## 12. 참고 문서
-
-- `docs/strategies/00_report_standards_and_index.md` – 문서 번호 부여 기준 및 시간순 인덱스
-- `docs/strategies/investment_strategy_registry_v1.md` – 최초 투자 전략 등록
-- `docs/strategies/current_trading_execution_plan.md` – 현재 실행 기준
-- `docs/strategies/28_중복방지_마스터_보고서_2026-06-01.md` – 워크플로우 중복 분석 및 방지 방안
-- `docs/strategies/time_ordered_trading_workflow_report.md` – 시간순 전체 워크플로우
-- `docs/strategies/trading_mode_separation_policy.md` – backtest/paper/real 모드 분리
-- `docs/strategies/signal_utilization_gap_report_2026-05-29.md` – 신호 활용 누락 진단
-
-## 13. 보조 전략·실험 노트 통합 요약
-
-아래 항목은 기존 루트/중복 Markdown에 흩어져 있던 내용을 마스터 플랜 기준으로 요약 반영한 것이다. 원문은 보관하되, 운영 판단은 이 요약을 우선한다.
-
-### 13.1 후지모토 1-2-6 독립 전략 상태
-
-| 항목 | 현재 해석 |
-|---|---|
-| 전략 위치 | **주 전략이 아니라 보조/독립 후보 전략** |
-| 구현 상태 | `core/fujimoto_126_filter.py` 등 핵심 지표 구현은 존재 |
-| 기존 긍정 결과 | 재진입 포함 일부 백테스트에서 평균 수익/승률 개선 사례가 있었음 |
-| 현재 제한 | 최근 표본에서는 진입 신호 부족, 파라미터 안정성/표본 확대 미완료 |
-| 운영 판단 | paper/real 허용 근거 아님. ka10080 표본 확대 후 보조 필터로 재평가 |
-
-후지모토 관련 남은 과제:
-- ka10080 기준 90거래일 이상 또는 동등 수준 표본 확보
-- 한국 시장용 RSI/MACD/Ichimoku 파라미터 재검증
-- 1:2:6 분할 진입은 주문 레이어 후보로만 유지
-- 손절/목표수익/시간청산/트레일링 스탑은 백테스트 통과 전까지 실주문 미반영
-
-### 13.2 RSI/CCI Disparity 전략 상태
-
-아카이브된 `docs/archive/legacy_markdown_2026-06-04/docs_strategies/master_plan.md`와 `docs/archive/legacy_markdown_2026-06-04/root/README_rsi_cci.md`에 있던 RSI/CCI disparity20 전략은 다음처럼 정리한다.
-
-| 항목 | 현재 해석 |
-|---|---|
-| 전략 위치 | 보조 전략 / 실험 후보 |
-| 주요 조건 | disparity20, CCI -100 상향 돌파, RSI 70 하향 이탈, 거래량 MA20 |
-| 실행 구조 | mock/prod 환경 분리, `scripts/run_strategy.py` 기반 dry-run/execute 구조 |
-| 안전 기준 | `--execute` 없이는 주문 금지, mock/prod credential 분리 |
-| 운영 판단 | 현재 마스터 전략의 핵심 gate를 대체하지 않음. 신호 비교/보조 필터 후보로 유지 |
-
-### 13.3 공시·거래량 분석 반영
-
-아카이브된 `docs/archive/legacy_markdown_2026-06-04/root/DATA_PIPELINE_CHECK.md`, `docs/archive/legacy_markdown_2026-06-04/root/DISCLOSURE_VOLUME_CORRELATION.md`의 핵심 결론:
-
-| 항목 | 결론 |
-|---|---|
-| 초기 문제 | OpenDART 공시 종목과 `daily_prices` 보유 종목 간 overlap이 없어 분석 불가 |
-| 이후 보완 | 일부 종목 일봉 데이터 재수집 후 42개 disclosure-date pair 분석 |
-| Pearson | 약 +0.0325 |
-| Spearman | 약 -0.0789 |
-| 운영 판단 | **공시 건수만으로 거래량/가격 방향을 판단하지 않는다.** 공시 유형 가중치와 유동성 필터가 필요 |
-
-후속 과제:
-- 공시 유형별 중요도 mapping 작성
-- 거래량 변동률 대신 20일 평균 대비 z-score/MAD 기반 지표 사용
-- t/t+1/t-1 시차 효과 검증
-- 저유동성 outlier 제거 기준 수립
-
-### 13.4 동적 청산/최근 실험 요약
-
-아카이브된 `docs/archive/legacy_markdown_2026-06-04/root/dynamic_exit_strategies.md`, `docs/archive/legacy_markdown_2026-06-04/root/summary.md`에 있던 실험 요약:
-
-| 실험 | 결과/해석 |
-|---|---|
-| 기본 손절 -1%, 익절 +3→+5%, 최대 3일 | 평균 순수익 음수, TIME_EXIT/STOP_LOSS 비중 높음 |
-| 손절 -5% 확대 | 손실 폭 확대, 기대값 개선 실패 |
-| 시장 관행형 손익비 테스트 | 일부 샘플에서 계속 음수 기대값 |
-| 동적 청산: 20기간 MA + 5% trailing | 후지모토 min_score 미달로 거래 0건 |
-| RSI 단독 + trailing | 테스트 표본에서 평균 순수익 음수, 승률 0% |
-
-운영 판단:
-- 청산 로직보다 먼저 **진입 조건의 기대값과 신호 빈도**를 확보해야 한다.
-- 동적 청산은 폐기하지 않되, 현재 paper/real gate 해제 근거가 아니다.
-- 다음 검증은 “진입 기준 완화/확장 → 충분 표본 확보 → 청산 로직 비교” 순서로 진행한다.
-
----
-
-## 14. 대시보드·운영 UI 기준
-
-현재 Dash Kiwoom 대시보드는 read-only 운영 터미널이다.
-
-| 항목 | 기준 |
-|---|---|
-| 서비스 | user systemd `dash-kiwoom.service` |
-| 포트 | `127.0.0.1:3000` |
-| 외부 URL | `https://dash-kiwoom.duckdns.org/` |
-| Caddy 역할 | 외부 reverse proxy 및 서비스 map 표시 |
-| 주문 기능 | 없음 / read-only |
-| 실시간 시장 지수 | **미연동**. 가짜 KOSPI/KOSDAQ/USD/BTC 값 표시 금지 |
-| 현재 시장 카드 | `signals.csv` 기반 신호 freshness/STALE/LIVE 상태 표시 |
-
-대시보드는 의사결정 보조 화면이며, 실시간 지수/체결/호가 feed가 연결되기 전까지 “실시간 시장 현황”이라고 표시하지 않는다.
-
----
-
-## 15. 문서 정리 기준
-
-이번 정리 이후 문서 기준은 다음과 같다.
-
-```text
-1. 사용자가 먼저 읽을 문서: docs/strategies/00_master_trading_plan.md
-2. 문서 인덱스: docs/strategies/00_report_standards_and_index.md
-3. 중복 master_plan/루트 실험 메모: docs/archive/legacy_markdown_YYYY-MM-DD/에 보관
-4. 새 의사결정 문서: docs/strategies/NN_topic_YYYY-MM-DD.md 형식
-5. 가벼운 원문/추출물: docs/strategy_sources 또는 archive에 보관하되 마스터 플랜에는 요약만 반영
-```
-
-마스터 플랜에는 원문을 통째로 붙이지 않고, 운영 판단/차단 조건/다음 작업만 반영한다.
-
